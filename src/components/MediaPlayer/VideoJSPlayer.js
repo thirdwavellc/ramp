@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import PropTypes from 'prop-types';
 import videojs from 'video.js';
 import 'video.js/dist/video-js.css';
@@ -35,7 +35,11 @@ function VideoJSPlayer({ isVideo, initStartTime, ...videoJSOptions }) {
       }),
       type: 'updatePlayer',
     });
-  }, []);
+
+    // TODO: Wire up the cleanup
+    // Clean up player instance on component unmount
+    //return () => player.dispose();
+  }, [canvasIndex]);
 
   React.useEffect(() => {
     if (player) {
@@ -109,14 +113,20 @@ function VideoJSPlayer({ isVideo, initStartTime, ...videoJSOptions }) {
 
   const handleEnded = (Player) => {
     if (hasNextSection({ canvasIndex, manifest })) {
-      console.log(cIndex);
-      debugger;
-
       const { sources, mediaType, error } = getMediaInfo({
         manifest,
         canvasIndex: cIndex + 1,
       });
+      // const currentIsVideo = mediaType === 'video' ? false : true;
+      // Player.src(sources);
+      // Player.play();
+
+      // let playerOnPage = videojs(`videojs-${canvasIndex}`);
+      // playerOnPage.dispose();
+
+      Player = videojs(playerRef.current, videoJSOptions);
       Player.src(sources);
+      Player.load();
       Player.play();
 
       playerDispatch({ player: Player, type: 'updatePlayer' });

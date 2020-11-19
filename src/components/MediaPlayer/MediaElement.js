@@ -20,7 +20,6 @@ import '../../mediaelement/stylesheets/mejs-iiif-player-styles.scss';
 import {
   createSourceTags,
   createTrackTags,
-  switchMedia,
 } from '@Services/mejs-utility-helper';
 import { hasNextSection } from '@Services/iiif-parser';
 
@@ -35,27 +34,24 @@ const MediaElement = ({
   sources,
   tracks,
   width,
-  startTime,
+  initStartTime,
+  canvasIndex,
 }) => {
   const playerDispatch = usePlayerDispatch();
-  const { isClicked, isPlaying, captionOn } = usePlayerState();
+  const { isPlaying, startTime } = usePlayerState();
   const manifestDispatch = useManifestDispatch();
-  const { manifest, canvasIndex } = useManifestState();
-
-  const [meJSPlayer, setMEJSPlayer] = useState({
-    media: null,
-    node: null,
-    instance: null,
-  });
-  const [cIndex, setCIndex] = useState(canvasIndex);
+  const { manifest } = useManifestState();
 
   const success = (media, node, instance) => {
     console.log('Loaded successfully');
-    const player = { media, node, instance };
 
     // Register ended event
-    media.addEventListener('ended', () => {
-      handleEnded(player);
+    media.addEventListener('ended', (ended) => {
+      if (ended) {
+        // Re-set playhead to 0
+        playerDispatch({ startTime: 0, type: 'setStartTime' });
+        handleEnded();
+      }
     });
 
     // Register caption change event
@@ -74,31 +70,26 @@ const MediaElement = ({
     });
 
     media.addEventListener('loadedmetadata', () => {
-      playerDispatch({ startTime: startTime, type: 'setStartTime' });
-      player.node.currentTime = startTime || 0;
+      console.log('loaded metadata');
+      playerDispatch({
+        startTime: initStartTime || startTime,
+        type: 'setStartTime',
+      });
+      node.currentTime = initStartTime || startTime;
     });
 
-    setMEJSPlayer(player);
+    if (isPlaying) {
+      media.play();
+    }
   };
 
   const error = (media) => {
     console.log('Error loading');
   };
 
-  const handleEnded = (player) => {
+  const handleEnded = () => {
     if (hasNextSection({ canvasIndex, manifest })) {
       manifestDispatch({ canvasIndex: canvasIndex + 1, type: 'switchCanvas' });
-
-      let newInstance = switchMedia(
-        player,
-        canvasIndex + 1,
-        isPlaying || true,
-        captionOn,
-        manifest
-      );
-
-      playerDispatch({ player: newInstance, type: 'updatePlayer' });
-      setCIndex(cIndex + 1);
     }
   };
 
@@ -136,21 +127,7 @@ const MediaElement = ({
       player: new MediaElementPlayer(id, meConfigs),
       type: 'updatePlayer',
     });
-  }, []);
-
-  useEffect(() => {
-    if (cIndex !== canvasIndex && isClicked) {
-      let newInstance = switchMedia(
-        meJSPlayer,
-        canvasIndex,
-        isPlaying || false,
-        captionOn,
-        manifest
-      );
-      playerDispatch({ player: newInstance, type: 'updatePlayer' });
-      setCIndex(canvasIndex);
-    }
-  }, [canvasIndex]); // Invoke the effect only when canvas changes
+  }, [canvasIndex]);
 
   const sourceTags = createSourceTags(JSON.parse(sources));
   const tracksTags = createTrackTags(JSON.parse(tracks));
@@ -186,6 +163,7 @@ MediaElement.propTypes = {
   sources: PropTypes.string,
   tracks: PropTypes.string,
   width: PropTypes.number,
+  canvasIndex: PropTypes.number,
 };
 
 export default MediaElement;

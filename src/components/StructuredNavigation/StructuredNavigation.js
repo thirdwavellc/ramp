@@ -14,13 +14,13 @@ import {
   canvasesInManifest,
 } from '@Services/iiif-parser';
 
-const StructuredNavigation = (props) => {
+const StructuredNavigation = () => {
   const manifestDispatch = useManifestDispatch();
   const manifestState = useManifestState();
   const playerDispatch = usePlayerDispatch();
   const { isClicked, clickedUrl, player } = usePlayerState();
 
-  const { canvasId, manifest } = manifestState;
+  const { manifest } = manifestState;
 
   useEffect(() => {
     if (isClicked) {

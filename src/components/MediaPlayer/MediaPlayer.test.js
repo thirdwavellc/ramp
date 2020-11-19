@@ -12,11 +12,11 @@ describe('MediaPlayer component with audio manifest', () => {
       initialPlayerState: {},
     });
     render(<PlayerWithManifest />);
-  })
+  });
 
-  test("renders successfully", ()=> {
-    expect(screen.getByTestId('media-player'))
-  })
+  test('renders successfully', () => {
+    expect(screen.getByTestId('media-player-0'));
+  });
 
   test('reads media type as audio from manifest', () => {
     expect(screen.getAllByTestId('audio-element'));
@@ -30,11 +30,11 @@ describe('MediaPlayer component with video manifest', () => {
       initialPlayerState: {},
     });
     render(<PlayerWithManifest />);
-  })
+  });
 
-  test("renders successfully", ()=> {
-    expect(screen.getByTestId('media-player'))
-  })
+  test('renders successfully', () => {
+    expect(screen.getByTestId('media-player-0'));
+  });
 
   test('reads media type as audio from manifest', () => {
     expect(screen.getAllByTestId('video-element'));

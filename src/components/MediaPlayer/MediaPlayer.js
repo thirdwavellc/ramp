@@ -4,20 +4,27 @@ import VideoJSPlayer from '@Components/MediaPlayer/VideoJSPlayer';
 import ErrorMessage from '@Components/ErrorMessage/ErrorMessage';
 import { getMediaInfo, getTracks, getStartTime } from '@Services/iiif-parser';
 import { useManifestState } from '../../context/manifest-context';
+import {
+  usePlayerState,
+  usePlayerDispatch,
+} from '../../context/player-context';
 
 const MediaPlayer = () => {
   const manifestState = useManifestState();
+  const { canvasIndex, manifest } = manifestState;
+  const { isClicked, player, startTime } = usePlayerState();
+  const dispatch = usePlayerDispatch();
+
   const [ready, setReady] = useState(false);
   const [sources, setSources] = useState([]);
   const [tracks, setTracks] = useState([]);
   const [mediaType, setMediaType] = useState('audio');
-  const [startTime, setStartTime] = useState();
+  const [initStartTime, setInitStartTime] = useState();
   const [error, setError] = useState(null);
-
-  const { canvasIndex, manifest } = manifestState;
+  const [cIndex, setCIndex] = useState(canvasIndex);
 
   useEffect(() => {
-    if (manifest) {
+    if ((cIndex !== canvasIndex && isClicked) || manifest) {
       const { sources, mediaType, error } = getMediaInfo({
         manifest,
         canvasIndex,
@@ -26,10 +33,17 @@ const MediaPlayer = () => {
       setSources(sources);
       setMediaType(mediaType);
       setError(error);
-      setStartTime(manifest.start ? getStartTime(manifest) : null);
+      setInitStartTime(manifest.start ? getStartTime(manifest) : null);
+      setCIndex(canvasIndex);
       error ? setReady(false) : setReady(true);
     }
-  }, [manifest]); // Re-run the effect when manifest changes
+  }, [manifest, canvasIndex]); // Re-run the effect when manifest/canvasIndex changes
+
+  useEffect(() => {
+    if (player) {
+      player.setCurrentTime(startTime, dispatch({ type: 'resetClick' }));
+    }
+  }, [startTime]);
 
   if (error) {
     return <ErrorMessage message={error} />;

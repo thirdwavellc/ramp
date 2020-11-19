@@ -25,6 +25,7 @@ const MediaPlayer = () => {
 
   useEffect(() => {
     if ((cIndex !== canvasIndex && isClicked) || manifest) {
+      console.log('CANVAS CHANGED IN MEDIAPLAYER');
       const { sources, mediaType, error } = getMediaInfo({
         manifest,
         canvasIndex,
@@ -41,7 +42,7 @@ const MediaPlayer = () => {
 
   useEffect(() => {
     if (player) {
-      player.setCurrentTime(startTime, dispatch({ type: 'resetClick' }));
+      player.currentTime(startTime, dispatch({ type: 'resetClick' }));
     }
   }, [startTime]);
 

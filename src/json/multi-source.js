@@ -56,54 +56,6 @@ export default {
       ],
     },
     {
-      id: 'https://dlib.indiana.edu/iiif_av/mahler-symphony-3/canvas/2',
-      type: 'Canvas',
-      duration: 3829,
-      width: 1920,
-      height: 1080,
-      items: [
-        {
-          id: 'https://dlib.indiana.edu/iiif_av/mahler-symphony-3/annopage/2',
-          type: 'AnnotationPage',
-          items: [
-            {
-              id:
-                'https://dlib.indiana.edu/iiif_av/mahler-symphony-3/annopage/2/2',
-              type: 'Annotation',
-              motivation: 'painting',
-              target: 'https://dlib.indiana.edu/iiif_av/canvas/2',
-              body: [
-                {
-                  type: 'Choice',
-                  choiceHint: 'user',
-                  items: [
-                    {
-                      id:
-                        'https://dlib.indiana.edu/iiif_av/mahler-symphony-3/CD2/high/320Kbps.mp4',
-                      type: 'Video',
-                      format: 'audio/mp4; codec..xxxxx',
-                      label: {
-                        en: ['High'],
-                      },
-                    },
-                    {
-                      id:
-                        'https://dlib.indiana.edu/iiif_av/mahler-symphony-3/CD2/medium/128Kbps.mp4',
-                      type: 'Video',
-                      format: 'audio/mp4; codec..xxxxx',
-                      label: {
-                        en: ['Medium'],
-                      },
-                    },
-                  ],
-                },
-              ],
-            },
-          ],
-        },
-      ],
-    },
-    {
       type: 'Canvas',
       id:
         'https://dlib.indiana.edu/iiif-av/iiif-player-samples/volleybal-for-boys/manifest/canvas/1',
@@ -111,7 +63,7 @@ export default {
         {
           type: 'AnnotationPage',
           id:
-            'https://dlib.indiana.edu/iiif-av/iiif-player-samples/volleybal-for-boys/manifest/canvas/1/annotation_page/1',
+            'https://dlib.indiana.edu/iiif-av/iiif-player-samples/volleybal-for-boys/manifest/canvas/3/annotation_page/3',
           items: [
             {
               type: 'Annotation',
@@ -167,6 +119,54 @@ export default {
       width: 1920,
       height: 1080,
       duration: 662.037,
+    },
+    {
+      id: 'https://dlib.indiana.edu/iiif_av/mahler-symphony-3/canvas/2',
+      type: 'Canvas',
+      duration: 3829,
+      width: 1920,
+      height: 1080,
+      items: [
+        {
+          id: 'https://dlib.indiana.edu/iiif_av/mahler-symphony-3/annopage/2',
+          type: 'AnnotationPage',
+          items: [
+            {
+              id:
+                'https://dlib.indiana.edu/iiif_av/mahler-symphony-3/annopage/2/2',
+              type: 'Annotation',
+              motivation: 'painting',
+              target: 'https://dlib.indiana.edu/iiif_av/canvas/2',
+              body: [
+                {
+                  type: 'Choice',
+                  choiceHint: 'user',
+                  items: [
+                    {
+                      id:
+                        'https://dlib.indiana.edu/iiif_av/mahler-symphony-3/CD2/high/320Kbps.mp4',
+                      type: 'Video',
+                      format: 'audio/mp4; codec..xxxxx',
+                      label: {
+                        en: ['High'],
+                      },
+                    },
+                    {
+                      id:
+                        'https://dlib.indiana.edu/iiif_av/mahler-symphony-3/CD2/medium/128Kbps.mp4',
+                      type: 'Video',
+                      format: 'audio/mp4; codec..xxxxx',
+                      label: {
+                        en: ['Medium'],
+                      },
+                    },
+                  ],
+                },
+              ],
+            },
+          ],
+        },
+      ],
     },
   ],
   seeAlso: [],
@@ -290,6 +290,19 @@ export default {
                   type: 'Canvas',
                 },
               ],
+            },
+          ],
+        },
+        {
+          type: 'Range',
+          id:
+            'https://dlib.indiana.edu/iiif-av/iiif-player-samples/volleybal-for-boys/manifest/range/3',
+          label: 'Volleyball for Boys',
+          items: [
+            {
+              type: 'Canvas',
+              id:
+                'https://dlib.indiana.edu/iiif-av/iiif-player-samples/volleybal-for-boys/manifest/canvas/3#t=0,',
             },
           ],
         },

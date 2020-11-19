@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import PropTypes from 'prop-types';
 import videojs from 'video.js';
 import 'video.js/dist/video-js.css';
@@ -71,6 +71,7 @@ function VideoJSPlayer({ isVideo, initStartTime, ...videoJSOptions }) {
       });
     }
 
+    playerDispatch({ player: Player, type: 'updatePlayer' });
     // Clean up player instance on component unmount
     return () => {
       if (player) {
@@ -97,16 +98,31 @@ function VideoJSPlayer({ isVideo, initStartTime, ...videoJSOptions }) {
     }
   }, [startTime, endTime]);
 
+  // useEffect(() => {
+  //   // if (jsPlayer) {
+  //   //   jsPlayer.dispose();
+  //   // }
+  //   let Player = videojs(playerRef.current, videoJSOptions);
+
+  //   playerDispatch({ player: Player, type: 'updatePlayer' });
+  // }, [isClicked, canvasIndex]);
+
   const handleEnded = (Player) => {
     if (hasNextSection({ canvasIndex, manifest })) {
-      console.log(cIndex);
-      debugger;
-
       const { sources, mediaType, error } = getMediaInfo({
         manifest,
         canvasIndex: cIndex + 1,
       });
+      // const currentIsVideo = mediaType === 'video' ? false : true;
+      // Player.src(sources);
+      // Player.play();
+
+      // let playerOnPage = videojs(`videojs-${canvasIndex}`);
+      // playerOnPage.dispose();
+
+      Player = videojs(playerRef.current, videoJSOptions);
       Player.src(sources);
+      Player.load();
       Player.play();
 
       playerDispatch({ player: Player, type: 'updatePlayer' });
@@ -119,12 +135,14 @@ function VideoJSPlayer({ isVideo, initStartTime, ...videoJSOptions }) {
     <div data-vjs-player>
       {isVideo ? (
         <video
+          id={`videojs-${canvasIndex}`}
           data-testid="video-element"
           ref={playerRef}
           className="video-js"
         ></video>
       ) : (
         <audio
+          id={`videojs-${canvasIndex}`}
           data-testid="audio-element"
           ref={playerRef}
           className="video-js vjs-default-skin"

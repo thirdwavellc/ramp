@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import PropTypes from 'prop-types';
 import videojs from 'video.js';
 import 'video.js/dist/video-js.css';
@@ -13,6 +13,7 @@ import {
   useManifestDispatch,
   useManifestState,
 } from '../../context/manifest-context';
+import { getMediaInfo, hasNextSection } from '@Services/iiif-parser';
 
 function VideoJSPlayer({ isVideo, initStartTime, ...videoJSOptions }) {
   const [localPlayer, setLocalPlayer] = React.useState();
@@ -97,19 +98,21 @@ function VideoJSPlayer({ isVideo, initStartTime, ...videoJSOptions }) {
   }, [startTime, endTime]);
 
   const handleEnded = (Player) => {
-    // TODO: Need to get this working
-    // if (hasNextSection({ canvasIndex, manifest })) {
-    //   manifestDispatch({ canvasIndex: canvasIndex + 1, type: 'switchCanvas' });
-    //   let newInstance = switchMedia(
-    //     player,
-    //     canvasIndex + 1,
-    //     isPlaying || true,
-    //     captionOn,
-    //     manifest
-    //   );
-    //   playerDispatch({ player: newInstance, type: 'updatePlayer' });
-    //   setCIndex(cIndex + 1);
-    // }
+    if (hasNextSection({ canvasIndex, manifest })) {
+      console.log(cIndex);
+      debugger;
+
+      const { sources, mediaType, error } = getMediaInfo({
+        manifest,
+        canvasIndex: cIndex + 1,
+      });
+      Player.src(sources);
+      Player.play();
+
+      playerDispatch({ player: Player, type: 'updatePlayer' });
+      setCIndex(cIndex + 1);
+      manifestDispatch({ canvasIndex: canvasIndex + 1, type: 'switchCanvas' });
+    }
   };
 
   return (

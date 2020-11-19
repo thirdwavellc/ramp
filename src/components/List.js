@@ -12,7 +12,11 @@ const List = (props) => {
   }
 
   const collapsibleContent = (
-    <ul data-testid="list" className="irmp--structured-nav__list">
+    <ul
+      data-testid="list"
+      className="irmp--structured-nav__list"
+      key={props.items[0].id}
+    >
       {props.items.map((item) => {
         const filteredItem = filterVisibleRangeItem({
           item,
@@ -27,17 +31,13 @@ const List = (props) => {
             />
           );
         } else {
-          return (<List items={item.items} isChild={true} />);
+          return <List items={item.items} isChild={true} key={item.id} />;
         }
       })}
     </ul>
   );
 
-  return (
-    <React.Fragment>
-      {collapsibleContent}
-    </React.Fragment>
-  );
+  return <React.Fragment>{collapsibleContent}</React.Fragment>;
 };
 
 List.propTypes = {

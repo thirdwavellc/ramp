@@ -17,6 +17,7 @@ function manifestReducer(state = defaultState, action) {
       };
     }
     case 'switchCanvas': {
+      console.log('UPDATE CANVAS INDEX: ', action.canvasIndex);
       return {
         ...state,
         canvasIndex: action.canvasIndex,

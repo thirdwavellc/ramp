@@ -25,7 +25,6 @@ const MediaPlayer = () => {
 
   useEffect(() => {
     if ((cIndex !== canvasIndex && isClicked) || manifest) {
-      console.log('CANVAS CHANGED IN MEDIAPLAYER');
       const { sources, mediaType, error } = getMediaInfo({
         manifest,
         canvasIndex,

@@ -15,13 +15,13 @@ describe('MediaPlayer component with audio manifest', () => {
   });
 
   test('renders successfully', () => {
-    expect(screen.getByTestId('media-player-0'));
+    expect(screen.getByTestId('media-player'));
   });
 
   test('reads media type as audio from manifest', () => {
     expect(screen.getAllByTestId('audio-element'));
-  })
-})
+  });
+});
 
 describe('MediaPlayer component with video manifest', () => {
   beforeEach(() => {
@@ -33,10 +33,10 @@ describe('MediaPlayer component with video manifest', () => {
   });
 
   test('renders successfully', () => {
-    expect(screen.getByTestId('media-player-0'));
+    expect(screen.getByTestId('media-player'));
   });
 
   test('reads media type as audio from manifest', () => {
     expect(screen.getAllByTestId('video-element'));
-  }) 
+  });
 });

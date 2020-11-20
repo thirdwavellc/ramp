@@ -13,9 +13,14 @@ import {
   useManifestDispatch,
   useManifestState,
 } from '../../context/manifest-context';
-import { getMediaInfo, hasNextSection } from '@Services/iiif-parser';
+import { hasNextSection } from '@Services/iiif-parser';
 
-function VideoJSPlayer({ isVideo, initStartTime, ...videoJSOptions }) {
+function VideoJSPlayer({
+  isVideo,
+  handleIsEnded,
+  initStartTime,
+  ...videoJSOptions
+}) {
   const [localPlayer, setLocalPlayer] = React.useState();
   const playerRef = React.useRef();
   const playerDispatch = usePlayerDispatch();
@@ -27,6 +32,8 @@ function VideoJSPlayer({ isVideo, initStartTime, ...videoJSOptions }) {
   const playerState = usePlayerState();
 
   const { player } = playerState;
+
+  const [isEnded, setIsEnded] = useState(false);
 
   React.useEffect(() => {
     playerDispatch({
@@ -60,10 +67,14 @@ function VideoJSPlayer({ isVideo, initStartTime, ...videoJSOptions }) {
       });
       player.on('ended', () => {
         console.log('ended');
-        handleEnded(player);
+        setIsEnded(true);
+        handleEnded();
       });
       player.on('loadedmetadata', () => {
         console.log('loadedmetadata');
+        if (isPlaying || isEnded) {
+          player.play();
+        }
       });
       player.on('pause', () => {
         console.log('pause');
@@ -75,7 +86,7 @@ function VideoJSPlayer({ isVideo, initStartTime, ...videoJSOptions }) {
       });
     }
 
-    playerDispatch({ player: Player, type: 'updatePlayer' });
+    playerDispatch({ player: player, type: 'updatePlayer' });
     // Clean up player instance on component unmount
     return () => {
       if (player) {
@@ -102,36 +113,10 @@ function VideoJSPlayer({ isVideo, initStartTime, ...videoJSOptions }) {
     }
   }, [startTime, endTime]);
 
-  // useEffect(() => {
-  //   // if (jsPlayer) {
-  //   //   jsPlayer.dispose();
-  //   // }
-  //   let Player = videojs(playerRef.current, videoJSOptions);
-
-  //   playerDispatch({ player: Player, type: 'updatePlayer' });
-  // }, [isClicked, canvasIndex]);
-
-  const handleEnded = (Player) => {
+  const handleEnded = () => {
     if (hasNextSection({ canvasIndex, manifest })) {
-      const { sources, mediaType, error } = getMediaInfo({
-        manifest,
-        canvasIndex: cIndex + 1,
-      });
-      // const currentIsVideo = mediaType === 'video' ? false : true;
-      // Player.src(sources);
-      // Player.play();
-
-      // let playerOnPage = videojs(`videojs-${canvasIndex}`);
-      // playerOnPage.dispose();
-
-      Player = videojs(playerRef.current, videoJSOptions);
-      Player.src(sources);
-      Player.load();
-      Player.play();
-
-      playerDispatch({ player: Player, type: 'updatePlayer' });
-      setCIndex(cIndex + 1);
-      manifestDispatch({ canvasIndex: canvasIndex + 1, type: 'switchCanvas' });
+      const playerOnPage = videojs(`videojs-${canvasIndex}`);
+      handleIsEnded(playerOnPage);
     }
   };
 
@@ -156,6 +141,11 @@ function VideoJSPlayer({ isVideo, initStartTime, ...videoJSOptions }) {
   );
 }
 
-VideoJSPlayer.propTypes = {};
+VideoJSPlayer.propTypes = {
+  isVide: PropTypes.bool,
+  handleIsEnded: PropTypes.func,
+  initStartTime: PropTypes.number,
+  videoJSOptions: PropTypes.object,
+};
 
 export default VideoJSPlayer;

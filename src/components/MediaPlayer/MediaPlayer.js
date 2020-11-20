@@ -3,7 +3,10 @@ import MediaElement from '@Components/MediaPlayer/MediaElement';
 import VideoJSPlayer from '@Components/MediaPlayer/VideoJSPlayer';
 import ErrorMessage from '@Components/ErrorMessage/ErrorMessage';
 import { getMediaInfo, getTracks, getStartTime } from '@Services/iiif-parser';
-import { useManifestState } from '../../context/manifest-context';
+import {
+  useManifestDispatch,
+  useManifestState,
+} from '../../context/manifest-context';
 import {
   usePlayerState,
   usePlayerDispatch,
@@ -12,46 +15,56 @@ import {
 const MediaPlayer = () => {
   const manifestState = useManifestState();
   const { canvasIndex, manifest } = manifestState;
-  const { isClicked, player, startTime } = usePlayerState();
-  const dispatch = usePlayerDispatch();
+  const { player, startTime } = usePlayerState();
+  const manifestDispatch = useManifestDispatch();
 
   const [ready, setReady] = useState(false);
   const [sources, setSources] = useState([]);
   const [tracks, setTracks] = useState([]);
-  const [mediaType, setMediaType] = useState('audio');
-  const [initStartTime, setInitStartTime] = useState();
+  const [sourceType, setSourceType] = useState('audio');
   const [error, setError] = useState(null);
   const [cIndex, setCIndex] = useState(canvasIndex);
 
   useEffect(() => {
-    if ((cIndex !== canvasIndex && isClicked) || manifest) {
-      console.log('CANVAS CHANGED IN MEDIAPLAYER');
-      const { sources, mediaType, error } = getMediaInfo({
-        manifest,
-        canvasIndex,
-      });
-      setTracks(getTracks({ manifest }));
-      setSources(sources);
-      setMediaType(mediaType);
-      setError(error);
-      setInitStartTime(manifest.start ? getStartTime(manifest) : null);
-      setCIndex(canvasIndex);
-      error ? setReady(false) : setReady(true);
+    if (cIndex !== canvasIndex || manifest) {
+      initCanvas(canvasIndex);
     }
   }, [manifest, canvasIndex]); // Re-run the effect when manifest/canvasIndex changes
-
-  useEffect(() => {
-    if (player) {
-      player.currentTime(startTime, dispatch({ type: 'resetClick' }));
-    }
-  }, [startTime]);
 
   if (error) {
     return <ErrorMessage message={error} />;
   }
 
+  const handleEnded = (oldPlayer) => {
+    const { mediaType, sources } = initCanvas(canvasIndex + 1);
+    // When source type (audio/video) changes reset existing player
+    if (sourceType !== mediaType) {
+      oldPlayer.reset();
+    } else {
+      player.src(sources);
+      player.load();
+      player.play();
+    }
+
+    manifestDispatch({ canvasIndex: cIndex + 1, type: 'switchCanvas' });
+  };
+
+  const initCanvas = (canvasId) => {
+    const { sources, mediaType, error } = getMediaInfo({
+      manifest,
+      canvasIndex: canvasId,
+    });
+    setTracks(getTracks({ manifest }));
+    setSources(sources);
+    setSourceType(mediaType);
+    setError(error);
+    setCIndex(canvasId);
+    error ? setReady(false) : setReady(true);
+    return { mediaType, sources };
+  };
+
   const videoJsOptions = {
-    autoplay: true,
+    autoplay: false,
     controls: true,
     controlBar: {
       // Define and order control bar controls
@@ -79,7 +92,8 @@ const MediaPlayer = () => {
   return ready ? (
     <div data-testid="media-player">
       <VideoJSPlayer
-        isVideo={mediaType === 'video'}
+        isVideo={sourceType === 'video'}
+        handleIsEnded={handleEnded}
         initStartTime={startTime}
         {...videoJsOptions}
       />

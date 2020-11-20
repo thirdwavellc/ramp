@@ -20,7 +20,7 @@ export default {
           items: [
             {
               id:
-                'https://dlib.indiana.edu/iiif_av/mahler-symphony-3/annopage/1/1',
+                'https://dlib.indiana.edu/iiif_av/mahler-symphony-3/annopage/1',
               type: 'Annotation',
               motivation: 'painting',
               target: 'https://dlib.indiana.edu/iiif_av/canvas/1',
@@ -58,18 +58,18 @@ export default {
     {
       type: 'Canvas',
       id:
-        'https://dlib.indiana.edu/iiif-av/iiif-player-samples/volleybal-for-boys/manifest/canvas/1',
+        'https://dlib.indiana.edu/iiif-av/iiif-player-samples/volleybal-for-boys/manifest/canvas/2',
       items: [
         {
           type: 'AnnotationPage',
           id:
-            'https://dlib.indiana.edu/iiif-av/iiif-player-samples/volleybal-for-boys/manifest/canvas/3/annotation_page/3',
+            'https://dlib.indiana.edu/iiif-av/iiif-player-samples/volleybal-for-boys/manifest/canvas/2/annotation_page/2',
           items: [
             {
               type: 'Annotation',
               motivation: 'painting',
               target:
-                'https://dlib.indiana.edu/iiif-av/iiif-player-samples/volleybal-for-boys/manifest/canvas/1',
+                'https://dlib.indiana.edu/iiif-av/iiif-player-samples/volleybal-for-boys/manifest/canvas/2',
               body: {
                 type: 'Choice',
                 choiceHint: 'user',
@@ -121,22 +121,22 @@ export default {
       duration: 662.037,
     },
     {
-      id: 'https://dlib.indiana.edu/iiif_av/mahler-symphony-3/canvas/2',
+      id: 'https://dlib.indiana.edu/iiif_av/mahler-symphony-3/canvas/3',
       type: 'Canvas',
       duration: 3829,
       width: 1920,
       height: 1080,
       items: [
         {
-          id: 'https://dlib.indiana.edu/iiif_av/mahler-symphony-3/annopage/2',
+          id: 'https://dlib.indiana.edu/iiif_av/mahler-symphony-3/annopage/3',
           type: 'AnnotationPage',
           items: [
             {
               id:
-                'https://dlib.indiana.edu/iiif_av/mahler-symphony-3/annopage/2/2',
+                'https://dlib.indiana.edu/iiif_av/mahler-symphony-3/annopage/3',
               type: 'Annotation',
               motivation: 'painting',
-              target: 'https://dlib.indiana.edu/iiif_av/canvas/2',
+              target: 'https://dlib.indiana.edu/iiif_av/canvas/3',
               body: [
                 {
                   type: 'Choice',
@@ -307,7 +307,7 @@ export default {
           ],
         },
         {
-          id: 'https://dlib.indiana.edu/iiif_av/mahler-symphony-3/range/2',
+          id: 'https://dlib.indiana.edu/iiif_av/mahler-symphony-3/range/3',
           type: 'Range',
           label: {
             en: ['CD2 - Mahler, Symphony No.3 (cont.)'],
@@ -315,7 +315,7 @@ export default {
           items: [
             {
               id:
-                'https://dlib.indiana.edu/iiif_av/mahler-symphony-3/range/2-1',
+                'https://dlib.indiana.edu/iiif_av/mahler-symphony-3/range/3-1',
               type: 'Range',
               label: {
                 en: ['Track 1. II. Tempo di Menuetto'],
@@ -323,14 +323,14 @@ export default {
               items: [
                 {
                   id:
-                    'https://dlib.indiana.edu/iiif_av/mahler-symphony-3/canvas/2#t=0,566',
+                    'https://dlib.indiana.edu/iiif_av/mahler-symphony-3/canvas/3#t=0,566',
                   type: 'Canvas',
                 },
               ],
             },
             {
               id:
-                'https://dlib.indiana.edu/iiif_av/mahler-symphony-3/range/2-2',
+                'https://dlib.indiana.edu/iiif_av/mahler-symphony-3/range/3-2',
               type: 'Range',
               label: {
                 en: ['Track 2. III. Comodo'],
@@ -338,14 +338,14 @@ export default {
               items: [
                 {
                   id:
-                    'https://dlib.indiana.edu/iiif_av/mahler-symphony-3/canvas/2#t=566,1183',
+                    'https://dlib.indiana.edu/iiif_av/mahler-symphony-3/canvas/3#t=566,1183',
                   type: 'Canvas',
                 },
               ],
             },
             {
               id:
-                'https://dlib.indiana.edu/iiif_av/mahler-symphony-3/range/2-3',
+                'https://dlib.indiana.edu/iiif_av/mahler-symphony-3/range/3-3',
               type: 'Range',
               label: {
                 en: ['Track 3. Tempo I'],
@@ -353,14 +353,14 @@ export default {
               items: [
                 {
                   id:
-                    'https://dlib.indiana.edu/iiif_av/mahler-symphony-3/canvas/2#t=1183,1635',
+                    'https://dlib.indiana.edu/iiif_av/mahler-symphony-3/canvas/3#t=1183,1635',
                   type: 'Canvas',
                 },
               ],
             },
             {
               id:
-                'https://dlib.indiana.edu/iiif_av/mahler-symphony-3/range/2-4',
+                'https://dlib.indiana.edu/iiif_av/mahler-symphony-3/range/3-4',
               type: 'Range',
               label: {
                 en: ['Track 4. IV. Misterioso'],
@@ -368,14 +368,14 @@ export default {
               items: [
                 {
                   id:
-                    'https://dlib.indiana.edu/iiif_av/mahler-symphony-3/canvas/2#t=1635,2204',
+                    'https://dlib.indiana.edu/iiif_av/mahler-symphony-3/canvas/3#t=1635,2204',
                   type: 'Canvas',
                 },
               ],
             },
             {
               id:
-                'https://dlib.indiana.edu/iiif_av/mahler-symphony-3/range/2-5',
+                'https://dlib.indiana.edu/iiif_av/mahler-symphony-3/range/3-5',
               type: 'Range',
               label: {
                 en: ['Track 5. V. Lustig im Tempo'],
@@ -383,14 +383,14 @@ export default {
               items: [
                 {
                   id:
-                    'https://dlib.indiana.edu/iiif_av/mahler-symphony-3/canvas/2#t=2204,2475',
+                    'https://dlib.indiana.edu/iiif_av/mahler-symphony-3/canvas/3#t=2204,2475',
                   type: 'Canvas',
                 },
               ],
             },
             {
               id:
-                'https://dlib.indiana.edu/iiif_av/mahler-symphony-3/range/2-6',
+                'https://dlib.indiana.edu/iiif_av/mahler-symphony-3/range/3-6',
               type: 'Range',
               label: {
                 en: ['Track 6. VI. Langsam'],
@@ -398,14 +398,14 @@ export default {
               items: [
                 {
                   id:
-                    'https://dlib.indiana.edu/iiif_av/mahler-symphony-3/canvas/2#t=2475,3047',
+                    'https://dlib.indiana.edu/iiif_av/mahler-symphony-3/canvas/3#t=2475,3047',
                   type: 'Canvas',
                 },
               ],
             },
             {
               id:
-                'https://dlib.indiana.edu/iiif_av/mahler-symphony-3/range/2-7',
+                'https://dlib.indiana.edu/iiif_av/mahler-symphony-3/range/3-7',
               type: 'Range',
               label: {
                 en: ['Track 7. Nicht mehr so breit'],
@@ -413,14 +413,14 @@ export default {
               items: [
                 {
                   id:
-                    'https://dlib.indiana.edu/iiif_av/mahler-symphony-3/canvas/2#t=3047,3287',
+                    'https://dlib.indiana.edu/iiif_av/mahler-symphony-3/canvas/3#t=3047,3287',
                   type: 'Canvas',
                 },
               ],
             },
             {
               id:
-                'https://dlib.indiana.edu/iiif_av/mahler-symphony-3/range/2-8',
+                'https://dlib.indiana.edu/iiif_av/mahler-symphony-3/range/3-8',
               type: 'Range',
               label: {
                 en: ['Track 8. Tempo I'],
@@ -428,14 +428,14 @@ export default {
               items: [
                 {
                   id:
-                    'https://dlib.indiana.edu/iiif_av/mahler-symphony-3/canvas/2#t=3287,3451',
+                    'https://dlib.indiana.edu/iiif_av/mahler-symphony-3/canvas/3#t=3287,3451',
                   type: 'Canvas',
                 },
               ],
             },
             {
               id:
-                'https://dlib.indiana.edu/iiif_av/mahler-symphony-3/range/2-9',
+                'https://dlib.indiana.edu/iiif_av/mahler-symphony-3/range/3-9',
               type: 'Range',
               label: {
                 en: ['Track 9. Tempo I'],
@@ -443,30 +443,8 @@ export default {
               items: [
                 {
                   id:
-                    'https://dlib.indiana.edu/iiif_av/mahler-symphony-3/canvas/2#t=3451,3829',
+                    'https://dlib.indiana.edu/iiif_av/mahler-symphony-3/canvas/3#t=3451,3829',
                   type: 'Canvas',
-                },
-              ],
-            },
-          ],
-        },
-        {
-          type: 'Range',
-          id:
-            'https://dlib.indiana.edu/iiif-av/iiif-player-samples/volleybal-for-boys/manifest/range/1',
-          label: 'Volleyball for Boys',
-          behavior: 'top',
-          items: [
-            {
-              type: 'Range',
-              id:
-                'https://dlib.indiana.edu/iiif-av/iiif-player-samples/volleybal-for-boys/manifest/range/2',
-              label: 'Volleyball for Boys',
-              items: [
-                {
-                  type: 'Canvas',
-                  id:
-                    'https://dlib.indiana.edu/iiif-av/iiif-player-samples/volleybal-for-boys/manifest/canvas/1#t=0,',
                 },
               ],
             },

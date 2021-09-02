@@ -179,13 +179,12 @@ const Transcript = ({ transcripts }) => {
         }`}
         ref={transcriptContainerRef}
       >
-        {transcriptRef.current ? (
-          timedText
-        ) : (
+        {transcriptRef.current && timedText}
+        {!transcriptRef.current && transcriptUrl != '' && (
           <iframe
             className="transcript_gdoc-viewer"
             data-testid="transcript_gdoc-viewer"
-            src={`https://docs.google.com/gview?url=${transcriptUrl}&embedded=true`}
+            src={`https://docs.google.com/viewer?url=${transcriptUrl}&embedded=true`}
           ></iframe>
         )}
       </div>

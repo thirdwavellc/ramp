@@ -80,7 +80,7 @@ describe('Transcript component', () => {
         screen.queryByTestId('transcript_gdoc-viewer')
       ).toBeInTheDocument();
       expect(screen.getByTestId('transcript_gdoc-viewer').src).toEqual(
-        'https://docs.google.com/gview?url=http://example.com/transcript.doc&embedded=true'
+        'https://docs.google.com/viewer?url=http://example.com/transcript.doc&embedded=true'
       );
     });
 
@@ -100,7 +100,7 @@ describe('Transcript component', () => {
         screen.queryByTestId('transcript_gdoc-viewer')
       ).toBeInTheDocument();
       expect(screen.getByTestId('transcript_gdoc-viewer').src).toEqual(
-        'https://docs.google.com/gview?url=http://example.com/transcript.txt&embedded=true'
+        'https://docs.google.com/viewer?url=http://example.com/transcript.txt&embedded=true'
       );
     });
   });

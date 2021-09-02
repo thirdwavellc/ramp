@@ -9,8 +9,16 @@
   }
 
   div.transcript_content {
-    height: 25em;
+    height: 30em;
     overflow-y: auto;
+
+    iframe.transcript_gdoc-viewer {
+      width: 100%;
+      width: -moz-available; /* WebKit-based browsers will ignore this. */
+      width: -webkit-fill-available; /* Mozilla-based browsers will ignore this. */
+      width: fill-available;
+      height: inherit;
+    }
   }
 
   div.transcript_content.static {
@@ -20,14 +28,6 @@
   div.transcript_menu {
     position: sticky;
     top: 0;
-  }
-
-  iframe.transcript_gdoc-viewer {
-    width: 100%;
-    width: -moz-available; /* WebKit-based browsers will ignore this. */
-    width: -webkit-fill-available; /* Mozilla-based browsers will ignore this. */
-    width: fill-available;
-    height: 25em; /* Parent div's height - 5*/
   }
 }
 
@@ -121,7 +121,7 @@ div.irmp--transcript_downloader {
     text-align: center;
     line-height: 25px;
     border: 1px solid $primaryLight;
-    width: fit-content;
+    width: max-content;
   }
 }
 

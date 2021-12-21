@@ -29,7 +29,7 @@ export default {
                   choiceHint: 'user',
                   items: [
                     {
-                      id: 'https://dlib.indiana.edu/iiif_av/lunchroom_manners/high/lunchroom_manners_1024kb.mp4',
+                      id: 'https://dlib.indiana.edu/iiif_av/lunchroom_manners/high/lunchroom_manners_1024kb.mp4#t=23.5,150',
                       type: 'Video',
                       format: 'video/mp4',
                       label: {
@@ -37,7 +37,7 @@ export default {
                       },
                     },
                     {
-                      id: 'https://dlib.indiana.edu/iiif_av/lunchroom_manners/medium/lunchroom_manners_512kb.mp4',
+                      id: 'https://dlib.indiana.edu/iiif_av/lunchroom_manners/medium/lunchroom_manners_512kb.mp4#t=23.5,150',
                       type: 'Video',
                       format: 'video/mp4',
                       label: {
@@ -45,7 +45,7 @@ export default {
                       },
                     },
                     {
-                      id: 'https://dlib.indiana.edu/iiif_av/lunchroom_manners/low/lunchroom_manners_256kb.mp4',
+                      id: 'https://dlib.indiana.edu/iiif_av/lunchroom_manners/low/lunchroom_manners_256kb.mp4#t=23.5,150',
                       type: 'Video',
                       format: 'video/mp4',
                       label: {

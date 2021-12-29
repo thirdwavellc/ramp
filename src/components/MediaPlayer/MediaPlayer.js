@@ -1,7 +1,12 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import VideoJSPlayer from '@Components/MediaPlayer/VideoJSPlayer';
 import ErrorMessage from '@Components/ErrorMessage/ErrorMessage';
-import { getMediaInfo, getPoster } from '@Services/iiif-parser';
+import {
+  getCanvasDuration,
+  getMediaFragment,
+  getMediaInfo,
+  getPoster,
+} from '@Services/iiif-parser';
 import { useManifestState } from '../../context/manifest-context';
 import {
   usePlayerState,
@@ -16,7 +21,7 @@ const MediaPlayer = () => {
   const playerDispatch = usePlayerDispatch();
   const { player } = playerState;
 
-  const [playerConfig, setPlayerConfig] = useState({
+  const [playerConfig, setPlayerConfig] = React.useState({
     error: '',
     sourceType: '',
     sources: [],
@@ -24,12 +29,16 @@ const MediaPlayer = () => {
     poster: null,
   });
 
-  const [ready, setReady] = useState(false);
-  const [cIndex, setCIndex] = useState(canvasIndex);
+  const [ready, setReady] = React.useState(false);
+  const [cIndex, setCIndex] = React.useState(canvasIndex);
+  const [mediaFraction, setMediaFraction] = React.useState({
+    start: null,
+    end: null,
+  });
 
   const { canvasIndex, manifest } = manifestState;
 
-  useEffect(() => {
+  React.useEffect(() => {
     if (manifest) {
       initCanvas(canvasIndex);
     }
@@ -53,6 +62,20 @@ const MediaPlayer = () => {
       manifest,
       canvasIndex: canvasId,
     });
+
+    const playerSrc = sources.filter((s) => s.selected)[0];
+    const timeFragment = getMediaFragment(playerSrc.src);
+    const duration = getCanvasDuration(manifest, canvasId);
+    if (timeFragment) {
+      setMediaFraction({
+        ...mediaFraction,
+        start: timeFragment.start,
+        end: timeFragment.stop,
+      });
+    } else {
+      setMediaFraction({ ...mediaFraction, start: 0, end: duration });
+    }
+
     setPlayerConfig({
       ...playerConfig,
       error,
@@ -91,7 +114,7 @@ const MediaPlayer = () => {
         'volumePanel',
         // 'progressControl',
         'videoJSProgress',
-        'remainingTimeDisplay',
+        'currentTimeDisplay',
         'subsCapsButton',
         'qualitySelector',
         'pictureInPictureToggle',
@@ -103,8 +126,10 @@ const MediaPlayer = () => {
         inline: false,
       },
       videoJSProgress: {
-        duration: 10,
+        start: mediaFraction.start,
+        end: mediaFraction.end,
       },
+      currentTimeDisplay: true,
       // disable fullscreen toggle button for audio
       fullscreenToggle: playerConfig.sourceType === 'audio' ? false : true,
       // // remove timetooltip on playhead when hovering over the time rail

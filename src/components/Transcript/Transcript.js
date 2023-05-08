@@ -6,14 +6,35 @@ import TranscriptSearch from './TranscriptMenu/TranscriptSearch';
 import { checkSrcRange, createTimestamp, getMediaFragment } from '@Services/utility-helpers';
 import { checkManifestAnnotations, parseTranscriptData } from '@Services/transcript-parser';
 import './Transcript.scss';
+import { useFilteredTranscripts } from '../..//context/search';
+
+
+
+const buildSpeakerText = (t, text) => {
+  if (t.speaker) {
+    return `<u>${t.speaker}:</u> ${text}`;
+  } else {
+    return text;
+  }
+};
+
+const highlightTranscriptItem = (t) => ('highlighted' in t
+  ? (t.highlighted.map((part, i) => (i % 2 === 0
+    ? part
+    : `<span class="ramp--transcript_search-match">${part}</span>`
+  ))).join('')
+  : t.text
+);
 
 const Transcript = ({ playerID, transcripts, showDownload: showSelect = true, showSearch = true }) => {
   const [canvasTranscripts, setCanvasTranscripts] = React.useState([]);
   const [transcript, _setTranscript] = React.useState([]);
+  const [filteredTranscripts, setFilteredTranscripts] = React.useState([]);
   const [transcriptTitle, setTranscriptTitle] = React.useState('');
   const [transcriptUrl, setTranscriptUrl] = React.useState('');
   const [canvasIndex, _setCanvasIndex] = React.useState(0);
   const [isLoading, setIsLoading] = React.useState(true);
+  const [searchQuery, setSearchQuery] = React.useState(null);
   const [errorMsg, setError] = React.useState('');
 
   let isMouseOver = false;
@@ -39,11 +60,19 @@ const Transcript = ({ playerID, transcripts, showDownload: showSelect = true, sh
   // React refs array for each timed text value in the transcript
   let textRefs = React.useRef([]);
   const transcriptContainerRef = React.useRef();
-  const transcriptRef = React.useRef();
+  const transcriptRef = React.useRef(transcript);
   const setTranscript = (t) => {
     transcriptRef.current = t;
     _setTranscript(t);
   };
+  useFilteredTranscripts({
+    enabled: true,
+    onlyMatches: true,
+    query: searchQuery,
+    setFilteredTranscripts,
+    transcripts: transcript
+  })
+
   let timedText = [];
 
   let player = null;
@@ -306,29 +335,20 @@ const Transcript = ({ playerID, transcripts, showDownload: showSelect = true, sh
     setIsMouseOver(state);
   };
 
-  const buildSpeakerText = (t) => {
-    let speakerText = '';
-    if (t.speaker) {
-      speakerText = `<u>${t.speaker}:</u> ${t.text}`;
-    } else {
-      speakerText = t.text;
-    }
-    return speakerText;
-  };
 
   if (transcriptRef.current) {
-    if (transcript.length > 0) {
-      if (typeof transcript[0] == 'string') {
+    if (filteredTranscripts && filteredTranscripts.length > 0) {
+      if (typeof filteredTranscripts[0].item == 'string') {
         // when given a word document as a transcript
         timedText.push(
           <div
             data-testid="transcript_docs"
-            dangerouslySetInnerHTML={{ __html: transcript[0] }}
+            dangerouslySetInnerHTML={{ __html: highlightTranscriptItem(filteredTranscript[0].item) }}
           />
         );
       } else {
         // timed transcripts
-        transcript.map((t, index) => {
+        filteredTranscripts.forEach((t, index) => {
           let line = (
             <div
               className="ramp--transcript_item"
@@ -351,7 +371,7 @@ const Transcript = ({ playerID, transcripts, showDownload: showSelect = true, sh
               <span
                 className="ramp--transcript_text"
                 data-testid="transcript_text"
-                dangerouslySetInnerHTML={{ __html: buildSpeakerText(t) }}
+                dangerouslySetInnerHTML={{ __html: buildSpeakerText(t, highlightTranscriptItem(t)) }}
               />
             </div>
           );
@@ -389,13 +409,12 @@ const Transcript = ({ playerID, transcripts, showDownload: showSelect = true, sh
               />
             )}
             {showSearch && (
-              <TranscriptSearch />
+              <TranscriptSearch setSearchQuery={setSearchQuery} />
             )}
           </div>
         )}
         <div
-          className={`transcript_content ${transcriptRef.current ? '' : 'static'
-            }`}
+          className={`transcript_content ${transcriptRef.current ? '' : 'static'}`}
           ref={transcriptContainerRef}
         >
           {transcriptRef.current && timedText}

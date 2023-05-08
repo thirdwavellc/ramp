@@ -65,6 +65,11 @@
   justify-content: space-between;
   align-items: center;
 
+  &-match {
+    font-weight: 500;
+    color: #f00;
+  }
+
   &-input {
     padding: 4px;
     width: 100%;
@@ -117,7 +122,7 @@ div.ramp--transcript_item {
     color: black;
   }
 
-  span::after {
+  span:not(.ramp--transcript_search-match)::after {
     display: block;
     content: attr(title);
     font-weight: bold;

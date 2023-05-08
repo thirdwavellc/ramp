@@ -1,11 +1,26 @@
 import React from 'react';
+import PropTypes from 'prop-types';
 
 
-const TranscriptSelector = (props) => {
+/**
+ * @typedef TranscriptSearchProps
+ * @property {(searchQuery: string | null) => void} setSearchQuery - sets the search query
+ */
+
+/**
+ * @param {TranscriptSearchProps} props
+ */
+const TranscriptSearch = ({ setSearchQuery }) => {
     return (
         <div className="ramp--transcript_search">
             <div className="ramp--transcript_search-input-container">
-                <input className="ramp--transcript_search-input" type="search" aria-label="Search the transcript" placeholder="Search Transcript..." />
+                <input
+                    type="search"
+                    className="ramp--transcript_search-input"
+                    aria-label="Search the transcript"
+                    placeholder="Search Transcript..."
+                    onChange={(event) => { console.log('search: ' + event.target.value); setSearchQuery(event.target.value) }}
+                />
             </div>
             <div className="ramp--transcript_search-navigator">
                 <button className="ramp--transcript_search-prev" href="#" disabled alt="Previous Search Result">Previous</button>
@@ -16,4 +31,8 @@ const TranscriptSelector = (props) => {
     );
 };
 
-export default TranscriptSelector;
+TranscriptSearch.propTypes = {
+    setSearchQuery: PropTypes.func.isRequired
+};
+
+export default TranscriptSearch;

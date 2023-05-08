@@ -5,7 +5,7 @@ import TranscriptSelector from './TranscriptSelector';
 const setTranscriptMock = jest.fn();
 
 describe('TranscriptSelector component', () => {
-  describe('with trascript data', () => {
+  describe('with transcript data', () => {
     beforeEach(() => {
       const props = {
         setTranscript: setTranscriptMock,

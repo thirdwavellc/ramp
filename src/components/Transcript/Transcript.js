@@ -1,12 +1,13 @@
 import React from 'react';
 import PropTypes from 'prop-types';
 import 'lodash';
-import TanscriptSelector from './TranscriptMenu/TranscriptSelector';
+import TranscriptSelector from './TranscriptMenu/TranscriptSelector';
+import TranscriptSearch from './TranscriptMenu/TranscriptSearch';
 import { checkSrcRange, createTimestamp, getMediaFragment } from '@Services/utility-helpers';
 import { checkManifestAnnotations, parseTranscriptData } from '@Services/transcript-parser';
 import './Transcript.scss';
 
-const Transcript = ({ playerID, transcripts }) => {
+const Transcript = ({ playerID, transcripts, showDownload: showSelect = true, showSearch = true }) => {
   const [canvasTranscripts, setCanvasTranscripts] = React.useState([]);
   const [transcript, _setTranscript] = React.useState([]);
   const [transcriptTitle, setTranscriptTitle] = React.useState('');
@@ -377,14 +378,19 @@ const Transcript = ({ playerID, transcripts }) => {
         onMouseLeave={() => handleMouseOver(false)}
       >
         {!isEmptyRef.current && (
-          <div className="transcript_menu">
-            <TanscriptSelector
-              setTranscript={selectTranscript}
-              title={transcriptTitle}
-              url={transcriptUrl}
-              transcriptData={canvasTranscripts}
-              noTranscript={timedText[0]?.key}
-            />
+          <div className="ramp--transcript_menu">
+            {showSelect && (
+              <TranscriptSelector
+                setTranscript={selectTranscript}
+                title={transcriptTitle}
+                url={transcriptUrl}
+                transcriptData={canvasTranscripts}
+                noTranscript={timedText[0]?.key}
+              />
+            )}
+            {showSearch && (
+              <TranscriptSearch />
+            )}
           </div>
         )}
         <div
@@ -411,6 +417,8 @@ const Transcript = ({ playerID, transcripts }) => {
 Transcript.propTypes = {
   /** `id` attribute of the media player in the DOM */
   playerID: PropTypes.string.isRequired,
+  showSelect: PropTypes.bool,
+  showSearch: PropTypes.bool,
   /** A list of transcripts for respective canvases in the manifest */
   transcripts: PropTypes.arrayOf(
     PropTypes.shape({

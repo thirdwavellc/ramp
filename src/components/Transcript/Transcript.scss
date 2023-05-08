@@ -1,8 +1,8 @@
-@import '../../styles/_vars.scss';
+@import "../../styles/_vars.scss";
 
 .ramp--transcript_nav {
   max-height: 30em;
-  font-size: 0.85em;
+  font-size: 1rem;
   padding: 10px;
 
   div.active {
@@ -28,9 +28,24 @@
     overflow-y: unset;
   }
 
-  div.transcript_menu {
+  .ramp--transcript_menu {
     position: sticky;
     top: 0;
+    margin-bottom: 0.5em;
+    background-color: #fff;
+    border: 1px solid transparent;
+    padding: 0.5em;
+    display: flex;
+    flex-direction: column;
+    font-weight: 500;
+    gap: 0.5em;
+    border-color: $primaryLight;
+    border-radius: 3px;
+    & input,
+    & button,
+    & select {
+      font-size: unset;
+    }
   }
 
   iframe.transcript_viewer {
@@ -45,9 +60,39 @@
   }
 }
 
+.ramp--transcript_search {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+
+  &-input {
+    padding: 4px;
+    width: 100%;
+
+    &-container {
+      max-width: 50%;
+      flex: 1 1 auto;
+    }
+  }
+
+  &-navigator {
+    display: flex;
+    align-items: center;
+    gap: 0.5em;
+  }
+
+  &-prev,
+  &-next {
+    color: #000;
+    &:disabled {
+      color: #7e7e7e;
+    }
+  }
+}
+
 div.ramp--transcript_item {
   display: flex;
-  margin: 10px 10px 10px 10px;
+  padding: 10px;
   cursor: pointer;
 
   &:hover {
@@ -85,15 +130,10 @@ div.ramp--transcript_item {
 
 /* TranscriptSelector styling */
 .ramp--transcript_selector {
-  margin-bottom: 20px;
-  background-color: #fff;
-  border: 1px solid transparent;
-  padding: 1em;
-  border-color: $primaryLight;
-  border-radius: 3px;
-  position: relative;
-
-  select {
+  gap: 0.5em;
+  display: flex;
+  justify-content: space-between;
+  & select {
     font-family: $fontPrimary;
     padding: 4px;
     width: 100%;
@@ -101,22 +141,19 @@ div.ramp--transcript_item {
 
   .selector-content {
     margin: 0;
-    position: absolute;
     width: 50%;
   }
 }
 
 @media only screen and (min-width: 992px) {
-  .ramp--transcript_selector>div>select {
+  .ramp--transcript_selector > div > select {
     max-width: 100%;
   }
 }
 
 /* TranscriptDownloader styling */
 button.ramp--transcript_downloader {
-  float: right;
   margin: 0;
-  position: relative;
   color: $primaryDarkest;
   border-radius: 3px;
   text-align: center;
@@ -128,16 +165,16 @@ button.ramp--transcript_downloader {
 /* Extra small devices (600px and down) */
 @media only screen and (max-width: 600px) {
   .ramp--transcript_selector {
-    min-height: 4em;
+    flex-direction: column;
 
-    select {
-      min-width: 8em;
+    & .selector-content {
+      width: fit-content;
     }
   }
 
   button.ramp--transcript_downloader {
     .download-label:after {
-      content: 'Download';
+      content: "Download";
     }
   }
 }
@@ -145,13 +182,12 @@ button.ramp--transcript_downloader {
 /* Small devices (600px and up) */
 @media only screen and (min-width: 600px) {
   .ramp--transcript_selector {
-    min-height: 3.5em;
-    padding: 0.5em;
+    // padding: 0.5em;
   }
 
   button.ramp--transcript_downloader {
     .download-label:after {
-      content: 'Download this transcript';
+      content: "Download this transcript";
     }
   }
 }

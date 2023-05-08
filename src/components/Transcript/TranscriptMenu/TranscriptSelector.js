@@ -1,7 +1,7 @@
 import React from 'react';
 import TranscriptDownloader from './TranscriptDownloader';
 
-const TanscriptSelector = (props) => {
+const TranscriptSelector = (props) => {
   const [title, setTitle] = React.useState(props.title);
 
   const selectItem = (event) => {
@@ -39,4 +39,4 @@ const TanscriptSelector = (props) => {
   }
 };
 
-export default TanscriptSelector;
+export default TranscriptSelector;

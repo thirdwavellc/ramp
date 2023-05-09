@@ -349,6 +349,7 @@ const Transcript = ({ playerID, transcripts, showDownload: showSelect = true, sh
       } else {
         // timed transcripts
         filteredTranscripts.forEach((t, index) => {
+          console.log('t', t);
           let line = (
             <div
               className="ramp--transcript_item"
@@ -356,15 +357,15 @@ const Transcript = ({ playerID, transcripts, showDownload: showSelect = true, sh
               key={index}
               ref={(el) => (textRefs.current[index] = el)}
               onClick={handleTranscriptTextClick}
-              starttime={t.begin} // set custom attribute: starttime
-              endtime={t.end} // set custom attribute: endtime
+              starttime={t.item.begin} // set custom attribute: starttime
+              endtime={t.item.end} // set custom attribute: endtime
             >
-              {t.begin && (
+              {t.item.begin && (
                 <span
                   className="ramp--transcript_time"
                   data-testid="transcript_time"
                 >
-                  <a href={'#'}>[{createTimestamp(t.begin, true)}]</a>
+                  <a href={'#'}>[{createTimestamp(t.item.begin, true)}]</a>
                 </span>
               )}
 

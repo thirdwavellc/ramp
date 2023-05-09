@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
 import fuzzysort from 'fuzzysort';
+import MiniSearch from 'minisearch';
 
 /**
  * @typedef TranscriptItem
@@ -15,18 +16,38 @@ import fuzzysort from 'fuzzysort';
  * @property {number} score - score of the match
  */
 
+let searchStore = null;
+let lastDataSet = null;
+let wrappedItems = null;
 /**
  * @param {string} query - the search query
  * @param {string[] | TranscriptItem[]} items - the items to search
  * @returns {TranscriptItemSearchMatch[]} - transcripts matching the search query
  */
 const defaultMatcher = async (query, items) => {
-    const wrappedItems = items.map(item => typeof item === 'string' ? { text: item } : item);
-    const results = fuzzysort.go(query, wrappedItems, { key: 'text', threshold: -10000 });
+    if (lastDataSet !== items || !searchStore) {
+        lastDataSet = items;
+        searchStore = new MiniSearch({
+            fields: ['text'],
+            storeFields: ['text'],
+            searchOptions: { fuzzy: 0.2 }
+        });
 
-    return results.map(match => ({
+        wrappedItems = lastDataSet.map((item, idx) => typeof item === 'string' ? { text: item, id: idx } : { id: idx, ...item });
+        searchStore.addAll(wrappedItems);
+    }
+    const results = searchStore.search(query).map(({ id, score }) => ({ ...lastDataSet[id], score }));
+    console.log(`"${query}" results:`, results);
+    const highlightedResults = fuzzysort.go(query, results, { key: 'text' });
+    if (highlightedResults.length !== results.length) {
+        console.log('result mismatch');
+        console.log('\tresults:', highlightedResults);
+        console.log('\thighlightedResults:', highlightedResults);
+    }
+
+    return highlightedResults.map((match, i) => ({
         item: match.obj,
-        score: match.score,
+        score: match.obj.score,
         highlighted: fuzzysort.highlight(match, s => s)
     }));
 };
@@ -63,7 +84,11 @@ export function useFilteredTranscripts({
     const abortControllerRef = useRef(null);
     useEffect(() => {
         if (!enabled || !query || !transcripts.length) {
-            setFilteredTranscripts(transcripts);
+            setFilteredTranscripts(transcripts.map((t, i) => ({
+                item: t,
+                score: 0 - i,
+                highlighted: [typeof t === 'string' ? t : t.text]
+            })));
         }
         const abortController = new AbortController();
         // abort any existing search operations

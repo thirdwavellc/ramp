@@ -4,7 +4,13 @@ import MiniSearch from 'minisearch';
 
 const wordRegexp = /[\d\p{General_Category=Letter}]/ug;
 
-export const getIndices = result => Array.from(result._indexes);
+/**
+ * The ._indexes property is not a true array so using directly will result in unexpected, non-deterministic behavior
+ * result._indexes.len is some magic value, anything beyond it can be discarded
+ * @param {Fuzzysort.Result} result - a fuzzy search result object
+ * @returns {number[]} the cleaned indices where matches occurred
+ */
+export const getIndices = result => result._indexes.slice(0, result._indexes.len);
 /**
  * @typedef SearchTerm
  * @property {string} value - the text of the search term
@@ -163,12 +169,17 @@ export const findTokenIndex = (tokens, index) => {
 };
 
 
-
+/**
+ * @typedef SearchTermMatch
+ * @property {SearchTerm} term - the search term which was matched
+ * @property {SourceTextToken[]} tokens - the tokens which were matched (duplicates for each codepoint in a term)
+ * @property {number[]} indices - the indices of the matched codepoints
+ */
 /**
  * @param {Fuzzysort.Result|number[]} match - a result object from fuzzysort or an array of indices where matches occurred
  * @param {SourceTextToken[]} tokens - the tokens from the source text
  * @param {SearchTerms[]} terms - the tokenized search terms
- * @returns {{term: SearchTerm; tokens: SourceTextToken[]; }[]} 
+ * @returns {SearchTermMatch[]} 
  */
 export const linkTermsToTokens = (match, tokens, terms) => {
     const results = [];
@@ -177,20 +188,26 @@ export const linkTermsToTokens = (match, tokens, terms) => {
     let cursor = 0;
     for (const term of terms) {
         let acceptedTokens = [];
+        let acceptedIndices = [];
         let offset = 0;
         do {
-            let termTokens = indicesToTokens(tokens, indices.slice(cursor + acceptedTokens.length + offset, cursor + offset + term.codepoints.length));
+            let sliced = indices.slice(cursor + acceptedTokens.length + offset, cursor + offset + term.codepoints.length)
+            let termTokens = indicesToTokens(tokens, sliced);
             for (let t = 0; t < termTokens.length; t++) {
                 if (termTokens[t].kind === 'word') {
                     acceptedTokens.push(termTokens[t]);
+                    acceptedIndices.push(sliced[t]);
                 } else {
                     offset++;
                     break;
                 }
             }
+            if (termTokens.length === 0) {
+                return null;
+            }
         } while (acceptedTokens.length !== term.codepoints.length);
 
-        results.push({ term, tokens: acceptedTokens });
+        results.push({ term, tokens: acceptedTokens, indices: acceptedIndices });
         cursor += term.codepoints.length;
     }
     return results;
@@ -200,16 +217,70 @@ export const linkTermsToTokens = (match, tokens, terms) => {
  * @param {Fuzzysort.Result} match - a result object from fuzzysort
  * @param {string} query - the search  query string
  */
-const validateMatch = (match, query) => {
+export const validateMatch = (match, query) => {
     const text = match.target;
     const tokens = tokenize(text);
     const terms = tokenizeSearchTerms(query);
-    const matchedTokens = linkTermsToTokens(match, tokens, terms);
-
     let indices = getIndices(match);
-    for (const token of matchedTokens) {
-        const activeTerm = terms[activeTermIndex];
+    const matchedTerms = linkTermsToTokens(indices, tokens, terms);
+    if (!matchedTerms) {
+        console.log(terms);//tokens);
+        throw new Error(`terms invalid\n\tindices:`);//${indices}\n\t${terms}`);
     }
+
+    for (const termMatch of matchedTerms) {
+        // console.log(termMatch);
+        if (termMatch.tokens.length > 1) { // this is now a split term
+            const token0 = termMatch.tokens[0];
+            let tIdx = 0;
+            let codepoints = 0;
+            do {
+                const cpIdx = indices.shift();
+                const token = termMatch.tokens[tIdx];
+                const lastToken = termMatch.tokens[tIdx - 1] ?? null;
+                const nextToken = termMatch.tokens[tIdx + 1] ?? null;
+
+                if (token.start > cpIdx || token.end < cpIdx) {
+                    if (token.start <= cpIdx) console.log('left');
+                    if (token.end < cpIdx) console.log('right');
+                    console.log(token, lastToken, nextToken, cpIdx)
+                    throw new RangeError('codepoint does not fall within the token`')
+                    return false;
+                }
+
+                if (token !== nextToken) {
+                    if (token === token0 && token.end - 1 !== cpIdx) {
+                        // the match did not make it to the end of the first token, reject
+                        return false;
+                    }
+                    tIdx++;
+
+                } else {
+                    if (token !== lastToken && token !== token0) {
+                        // first codepoint of a new token (not the first token)
+                        if (token.start !== cpIdx) {
+                            // the match did not start at the beginning of the token, reject
+                            return false;
+                        } else {
+                            // check to ensure there are no word tokens between here and lastToken
+                            let priorSibling = tokens[token.index - 1];
+                            while (priorSibling) {
+                                if (priorSibling.kind === 'word' && priorSibling !== lastToken) {
+                                    // there is a word token between here and lastToken, reject
+                                    return false;
+                                } else {
+                                    priorSibling = tokens[priorSibling.index - 1];
+                                }
+
+                            }
+                        }
+                    }
+                    codepoints++;
+                }
+            } while (codepoints < termMatch.term.codepoints.length);
+        }
+    }
+    return true;
 };
 
 

@@ -1,5 +1,34 @@
-import fuzzysort from 'fuzzysort';
-import { findTokenIndex, mergeTokens, indicesToTokens, tokenize, getIndices, tokenizeSearchTerms, linkTermsToTokens } from './search';
+import fuzzysort, { indexes } from 'fuzzysort';
+import { findTokenIndex, mergeTokens, indicesToTokens, tokenize, getIndices, tokenizeSearchTerms, linkTermsToTokens, validateMatch } from './search';
+
+describe('validation', () => {
+    const fixtures = [
+        'Her first idea was that she had somehow fallen into the sea, "and in that case I can go back by railway"',
+        'The Mouse looked at her rather inquisitively, and seemed to her to wink with one of its little eyes',
+        'Just then her head struck against the roof of the hall: in fact she was now more than nine feet high'
+    ];
+    test('two whole terms separated by whitespace match', () => {
+        const query = 'somehow fallen';
+        const match = fuzzysort.single(query, fixtures[0]);
+        expect(getIndices(match)).toEqual([32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45]);
+        expect(validateMatch(match, query)).toEqual(true);
+    });
+    test('a single term match at the beginning of a single token', () => {
+        const match = fuzzysort.single('rail', fixtures[0]);
+        expect(getIndices(match)).toEqual([96, 97, 98, 99]);
+        expect(validateMatch(match, 'rail')).toEqual(true);
+    });
+    test('a single term match at the middle of a single token', () => {
+        const match = fuzzysort.single('quisit', fixtures[1]);
+        expect(getIndices(match)).toEqual([33, 34, 35, 36, 37, 38]);
+        expect(validateMatch(match, 'quisit')).toEqual(true);
+    });
+    test('a single term match at the end of a single token', () => {
+        const match = fuzzysort.single('ruck', fixtures[2]);
+        expect(getIndices(match)).toEqual([21, 22, 23, 24]);
+        expect(validateMatch(match, 'ruck')).toEqual(true);
+    });
+});
 
 describe('search', () => {
     const fixtures = [
@@ -24,6 +53,48 @@ describe('search', () => {
     test('fuzzysort returns discontinuous matches', () => {
         const result = fuzzysort.single('sohe', fixtures[1]);
         expect(getIndices(result)).toEqual([0, 1, 6, 11]);
+    });
+    test
+    test('associate search terms in middle of a token', () => {
+        const tokens = tokenize(fixtures[0]);
+        const terms = tokenizeSearchTerms('ins');
+        const match = fuzzysort.single('ins', fixtures[0]);
+        expect(getIndices(match)).toEqual([7, 8, 9]);
+        const result = linkTermsToTokens(match, tokens, terms);
+
+        expect(result).toHaveLength(1);
+        expect(result[0].tokens).toHaveLength(3);
+        expect(mergeTokens(result[0].tokens)[0].value).toEqual('rinsed');
+    });
+    test('associate search terms at end of a token', () => {
+        const tokens = tokenize(fixtures[1]);
+        const terms = tokenizeSearchTerms('ssy');
+        const match = fuzzysort.single('ssy', fixtures[1]);
+        expect(getIndices(match)).toEqual([20, 21, 22]);
+        const result = linkTermsToTokens(match, tokens, terms);
+
+        expect(result).toHaveLength(1);
+        expect(result[0].tokens).toHaveLength(3);
+        expect(mergeTokens(result[0].tokens)[0].value).toEqual('messy');
+    });
+    test('associate search terms at start of a token', () => {
+        const tokens = tokenize(fixtures[3]);
+        const terms = tokenizeSearchTerms('nam');
+        const match = fuzzysort.single('nam', fixtures[3]);
+        expect(getIndices(match)).toEqual([15, 16, 17]);
+        const result = linkTermsToTokens(match, tokens, terms);
+
+        expect(result).toHaveLength(1);
+        expect(result[0].tokens).toHaveLength(3);
+        expect(mergeTokens(result[0].tokens)[0].value).toEqual('named');
+    });
+    test('if linkTermsToTokens get put into an infinite loop, it\'ll just return null', () => {
+        const tokens = tokenize(fixtures[2]);
+        const terms = tokenizeSearchTerms('nam');
+        const match = fuzzysort.single('nam', fixtures[3]);
+        const result = linkTermsToTokens(match, tokens, terms);
+
+        expect(result).toBeNull();
     });
     test('associate search terms with tokens in order', () => {
         const tokens = tokenize(fixtures[0]);

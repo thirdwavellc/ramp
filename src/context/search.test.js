@@ -7,7 +7,13 @@ describe('validation', () => {
         'The Mouse looked at her rather inquisitively, and seemed to her to wink with one of its little eyes',
         'Just then her head struck against the roof of the hall: in fact she was now more than nine feet high'
     ];
-    test('two whole terms separated by whitespace match', () => {
+    test('a single term split across two complete tokens with whitespace in between will match', () => {
+        const query = 'winkwith';
+        const match = fuzzysort.single(query, fixtures[1]);
+        expect(getIndices(match)).toEqual([67, 68, 69, 70, 72, 73, 74, 75]);
+        expect(validateMatch(match, query)).toEqual(true);
+    });
+    test('two whole terms separated by whitespace will match', () => {
         const query = 'somehow fallen';
         const match = fuzzysort.single(query, fixtures[0]);
         expect(getIndices(match)).toEqual([32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45]);
@@ -118,7 +124,7 @@ describe('search', () => {
         expect(result[0].tokens.map(t => t.value)).toEqual(['not', 'not', 'not']);
         expect(result[1].tokens.map(t => t.value)).toEqual(['messy', 'messy', 'messy', 'messy', 'messy']);
     });
-    test('associate search terms with split tokens', () => {
+    test('associate a single search term split by whitespace', () => {
         const tokens = tokenize(fixtures[2]);
         const terms = tokenizeSearchTerms('quickbro');
         const match = fuzzysort.single('quickbro', fixtures[2]);
@@ -128,7 +134,7 @@ describe('search', () => {
         expect(result[0].term).toEqual(terms[0]);
         expect(result[0].tokens.map(t => t.value)).toEqual(['quick', 'quick', 'quick', 'quick', 'quick', 'brown', 'brown', 'brown']);
     });
-    test('associate search terms split by special characters (ie: non-whitespace, non-word)', () => {
+    test('associate a single term split by a special characters (ie: non-whitespace, non-word)', () => {
         const tokens = tokenize(fixtures[3]);
         const terms = tokenizeSearchTerms(`kevin's`);
         const match = fuzzysort.single(`kevin's`, fixtures[3]);

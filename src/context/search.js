@@ -240,7 +240,8 @@ export const validateMatch = (match, query) => {
                 const lastToken = termMatch.tokens[tIdx - 1] ?? null;
                 const nextToken = termMatch.tokens[tIdx + 1] ?? null;
 
-                if (token.start > cpIdx || token.end < cpIdx) {
+                if (token.start > cpIdx) continue;
+                if (token.end < cpIdx) {
                     if (token.start <= cpIdx) console.log('left');
                     if (token.end < cpIdx) console.log('right');
                     console.log(token, lastToken, nextToken, cpIdx)
@@ -254,29 +255,27 @@ export const validateMatch = (match, query) => {
                         return false;
                     }
                     tIdx++;
-
-                } else {
-                    if (token !== lastToken && token !== token0) {
-                        // first codepoint of a new token (not the first token)
-                        if (token.start !== cpIdx) {
-                            // the match did not start at the beginning of the token, reject
-                            return false;
-                        } else {
-                            // check to ensure there are no word tokens between here and lastToken
-                            let priorSibling = tokens[token.index - 1];
-                            while (priorSibling) {
-                                if (priorSibling.kind === 'word' && priorSibling !== lastToken) {
-                                    // there is a word token between here and lastToken, reject
-                                    return false;
-                                } else {
-                                    priorSibling = tokens[priorSibling.index - 1];
-                                }
-
+                }
+                if (token !== lastToken && token !== token0) {
+                    // first codepoint of a new token (not the first token)
+                    if (token.start !== cpIdx) {
+                        // the match did not start at the beginning of the token, reject
+                        return false;
+                    } else {
+                        // check to ensure there are no tokens between here and lastToken
+                        let priorSibling = tokens[token.index - 1];
+                        while (priorSibling) {
+                            if (priorSibling.kind === 'word' && priorSibling !== lastToken) {
+                                // there is a word token between here and lastToken, reject
+                                return false;
+                            } else {
+                                priorSibling = tokens[priorSibling.index - 1];
                             }
+
                         }
                     }
-                    codepoints++;
                 }
+                codepoints++;
             } while (codepoints < termMatch.term.codepoints.length);
         }
     }

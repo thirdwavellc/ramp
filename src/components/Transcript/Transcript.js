@@ -18,12 +18,15 @@ const buildSpeakerText = (t, text) => {
   }
 };
 
-const highlightTranscriptItem = (t) => ('highlighted' in t
-  ? (t.highlighted.map((part, i) => (i % 2 === 0
-    ? part
-    : `<span class="ramp--transcript_search-match">${part}</span>`
-  ))).join('')
-  : t.text
+const highlightTranscriptItem = (t) => (typeof t === 'string'
+  ? t
+  : ('highlighted' in t
+    ? (t.highlighted.map((part, i) => (i % 2 === 0
+      ? part
+      : `<span class="ramp--transcript_search-match">${part}</span>`
+    ))).join('')
+    : t.text
+  )
 );
 
 const Transcript = ({ playerID, transcripts, showDownload: showSelect = true, showSearch = true }) => {
@@ -343,13 +346,12 @@ const Transcript = ({ playerID, transcripts, showDownload: showSelect = true, sh
         timedText.push(
           <div
             data-testid="transcript_docs"
-            dangerouslySetInnerHTML={{ __html: highlightTranscriptItem(filteredTranscript[0].item) }}
+            dangerouslySetInnerHTML={{ __html: highlightTranscriptItem(filteredTranscripts[0].item) }}
           />
         );
       } else {
         // timed transcripts
         filteredTranscripts.forEach((t, index) => {
-          console.log('t', t);
           let line = (
             <div
               className="ramp--transcript_item"

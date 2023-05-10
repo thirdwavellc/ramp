@@ -4,25 +4,40 @@ import MiniSearch from 'minisearch';
 
 const wordRegexp = /[\d\p{General_Category=Letter}]/ug;
 
+export const getIndices = result => Array.from(result._indexes);
 /**
- * Converts a search query into discrete tokens
- * @param {string} query - the search query
- * @returns {string[]} search tokens, separated by whitespace but ignoring special characters
+ * @typedef SearchTerm
+ * @property {string} value - the text of the search term
+ * @property {string[]} codepoints - the individual characters comprising the search term
  */
-export const tokenizeSearchQuery = (query) => (tokenize(query)
+
+/**
+ * Converts a search query into discrete tokens (referred to as SearchTerms)
+ * @param {string} query - the search query
+ * @returns {SearchTerm[]} search tokens, separated by whitespace but ignoring special characters
+ */
+export const tokenizeSearchTerms = (query) => (tokenize(query)
     .reduce((acc, token, idx, arry) => {
         let result = [...acc];
         if (acc.length) {
             if (token.kind === 'word') {
-                result[result.length - 1] = result[result.length - 1] + token.value;
+                result[result.length - 1].value = result[result.length - 1].value + token.value;
+                result[result.length - 1].codepoints = [...result[result.length - 1].codepoints, ...token.codepoints];
+
             } else if (token.kind === 'whitespace') {
-                result.push(''); // start a new token
+                result.push({
+                    value: '',
+                    codepoints: []
+                }); // start a new token
             } //else {
             // future tokens will be merged into the current one
             // example: [Blue][@][Green] ===> [BlueGreen]
             // }
         } else if (token.kind === 'word') {
-            result.push(token.value);
+            result.push({
+                value: token.value,
+                codepoints: [...token.codepoints]
+            });
         }
         if (idx === arry.length - 1 && token.kind === 'whitespace') {
             // remove trailing empty token
@@ -32,14 +47,14 @@ export const tokenizeSearchQuery = (query) => (tokenize(query)
     }, [])
 )
 
-
 /**
  * @typedef SourceTextToken
  * @property {'word'|'whitespace'|'other'} kind - the kind of token
  * @property {string} value - the text comprising the token
  * @property {string[]} codepoints - the individual codepoints making up the token
- * @property {number} start - the start index of the token (relative to source text)
- * @property {number} end - the end index of the token (relative to source text)
+ * @property {number} start - the start offset of the token (relative to source text)
+ * @property {number} end - the end offset of the token (relative to source text)
+ * @property {number} index - index of the token in the source text
  */
 
 /**
@@ -50,13 +65,14 @@ export const tokenizeSearchQuery = (query) => (tokenize(query)
 export const tokenize = (str) => {
     const tokens = [];
     let currentToken = null;
+    let offset = 0;
     let index = 0;
     const codepoints = Array.from(str);
     for (const codepoint of codepoints) {
         if (codepoint.match(wordRegexp)) {
             if (!currentToken || currentToken.kind !== 'word') {
                 if (currentToken) tokens.push(currentToken);
-                currentToken = { kind: 'word', value: codepoint, codepoints: [codepoint], start: index, end: index + 1 };
+                currentToken = { kind: 'word', value: codepoint, index, codepoints: [codepoint], index: index++, start: offset, end: offset + 1 };
             } else {
                 currentToken.value = currentToken.value + codepoint;
                 currentToken.codepoints.push(codepoint);
@@ -65,7 +81,7 @@ export const tokenize = (str) => {
         } else if (codepoint.match(/\s/g)) {
             if (!currentToken || currentToken.kind !== 'whitespace') {
                 if (currentToken) tokens.push(currentToken);
-                currentToken = { kind: 'whitespace', value: codepoint, codepoints: [codepoint], start: index, end: index + 1 };
+                currentToken = { kind: 'whitespace', value: codepoint, codepoints: [codepoint], index: index++, start: offset, end: offset + 1 };
             } else {
                 currentToken.value = currentToken.value + codepoint;
                 currentToken.codepoints.push(codepoint);
@@ -74,28 +90,45 @@ export const tokenize = (str) => {
         } else {
             if (!currentToken || currentToken.kind !== 'other') {
                 if (currentToken) tokens.push(currentToken);
-                currentToken = { kind: 'other', value: codepoint, codepoints: [codepoint], start: index, end: index + 1 };
+                currentToken = { kind: 'other', value: codepoint, codepoints: [codepoint], index: index++, start: offset, end: offset + 1 };
             } else {
                 currentToken.value = currentToken.value + codepoint;
                 currentToken.codepoints.push(codepoint);
                 currentToken.end++;
             }
         }
-        index++;
+        offset++;
     }
     if (currentToken) tokens.push(currentToken);
     return tokens;
 }
 
 /**
- * Uses indexes from fuzzysort matches to find the tokens at those indexes
- * @param {SourceTextToken[]} tokens - tokens from the source text
- * @param {number[]} indexes - an array of indexes for the matched characters (from fuzzysort)
- * @returns {SourceTextToken[]} - the tokens at the specified indexes
+ * Merges adjacent tokens which are (referentially) identical
+ * @param {SourceTextToken[]} tokens - the unmerged tokens
+ * @returns {SourceTextToken[]} the merged tokens
  */
-export const indexesToTokens = (tokens, indexes) => {
+export const mergeTokens = (tokens) => {
+    let current = null;
+    let result = [];
+    for (const token of tokens) {
+        if (current !== token) {
+            current = token;
+            result.push(token);
+        }
+    }
+    return result;
+}
+
+/**
+ * Uses indices from fuzzysort matches to find the tokens at those indices
+ * @param {SourceTextToken[]} tokens - tokens from the source text
+ * @param {number[]} indices - an array of indices for the matched characters (from fuzzysort)
+ * @returns {SourceTextToken[]} - the tokens at the specified indices
+ */
+export const indicesToTokens = (tokens, indices) => {
     const result = [];
-    for (const index of indexes) {
+    for (const index of indices) {
         const tokenIndex = findTokenIndex(tokens, index);
         if (tokenIndex !== -1) {
             result.push(tokens[tokenIndex]);
@@ -119,7 +152,7 @@ export const findTokenIndex = (tokens, index) => {
     while (start <= end) {
         const mid = Math.floor((start + end) / 2);
         const token = tokens[mid];
-        if (token.start <= index && token.end >= index) return mid;
+        if (token.start <= index && token.end > index) return mid;
         if (token.start > index) {
             end = mid - 1;
         } else {
@@ -127,6 +160,56 @@ export const findTokenIndex = (tokens, index) => {
         }
     }
     return -1;
+};
+
+
+
+/**
+ * @param {Fuzzysort.Result|number[]} match - a result object from fuzzysort or an array of indices where matches occurred
+ * @param {SourceTextToken[]} tokens - the tokens from the source text
+ * @param {SearchTerms[]} terms - the tokenized search terms
+ * @returns {{term: SearchTerm; tokens: SourceTextToken[]; }[]} 
+ */
+export const linkTermsToTokens = (match, tokens, terms) => {
+    const results = [];
+    const indices = Array.isArray(match) ? match : getIndices(match);
+
+    let cursor = 0;
+    for (const term of terms) {
+        let acceptedTokens = [];
+        let offset = 0;
+        do {
+            let termTokens = indicesToTokens(tokens, indices.slice(cursor + acceptedTokens.length + offset, cursor + offset + term.codepoints.length));
+            for (let t = 0; t < termTokens.length; t++) {
+                if (termTokens[t].kind === 'word') {
+                    acceptedTokens.push(termTokens[t]);
+                } else {
+                    offset++;
+                    break;
+                }
+            }
+        } while (acceptedTokens.length !== term.codepoints.length);
+
+        results.push({ term, tokens: acceptedTokens });
+        cursor += term.codepoints.length;
+    }
+    return results;
+}
+
+/**
+ * @param {Fuzzysort.Result} match - a result object from fuzzysort
+ * @param {string} query - the search  query string
+ */
+const validateMatch = (match, query) => {
+    const text = match.target;
+    const tokens = tokenize(text);
+    const terms = tokenizeSearchTerms(query);
+    const matchedTokens = linkTermsToTokens(match, tokens, terms);
+
+    let indices = getIndices(match);
+    for (const token of matchedTokens) {
+        const activeTerm = terms[activeTermIndex];
+    }
 };
 
 
@@ -140,7 +223,7 @@ export const findTokenIndex = (tokens, index) => {
 /**
  * @typedef TranscriptItemSearchMatch
  * @property {TranscriptItem|string} item - the original unmodified transcript item
- * @property {string[]} highlighted - the highlighted text (string at odd indexes are matches and will be highlighted)
+ * @property {string[]} highlighted - the highlighted text (string at odd indices are matches and will be highlighted)
  * @property {number} score - score of the match
  */
 

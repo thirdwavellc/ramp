@@ -1,82 +1,160 @@
-import fuzzysort, { indexes } from 'fuzzysort';
-import { findTokenIndex, indexesToTokens, tokenize, tokenizeSearchQuery } from './search';
+import fuzzysort from 'fuzzysort';
+import { findTokenIndex, mergeTokens, indicesToTokens, tokenize, getIndices, tokenizeSearchTerms, linkTermsToTokens } from './search';
 
 describe('search', () => {
     const fixtures = [
         'So he rinsed the soap off.',
-        'Some children are messy when they drink milk, but not Phil.'
+        'Some children are messy when they drink milk, but not Phil.',
+        'The quick brown fox jumps over the lazy dog.',
+        'Kevin\'s dog is named Kalvin.'
     ];
-    test('translating fuzzysort\'s result._indexes to tokens', () => {
+    test('translating fuzzysort\'s results to tokens', () => {
         const result = fuzzysort.single('sohe', fixtures[0]);
         const tokens = tokenize(fixtures[0]);
 
         // its not a true array so we'll test by stringifying
-        expect(indexes(result)).toEqual([0, 1, 3, 4]);
-        expect(indexesToTokens(tokens, result._indexes)).toEqual([
-            { kind: 'word', value: 'So', codepoints: ['S', 'o'], start: 0, end: 2 },
-            { kind: 'word', value: 'So', codepoints: ['S', 'o'], start: 0, end: 2 },
-            { kind: 'word', value: 'he', codepoints: ['h', 'e'], start: 3, end: 5 },
-            { kind: 'word', value: 'he', codepoints: ['h', 'e'], start: 3, end: 5 }
+        expect(getIndices(result)).toEqual([0, 1, 3, 4]);
+        expect(indicesToTokens(tokens, result._indexes)).toEqual([
+            { kind: 'word', value: 'So', codepoints: ['S', 'o'], start: 0, end: 2, index: 0 },
+            { kind: 'word', value: 'So', codepoints: ['S', 'o'], start: 0, end: 2, index: 0 },
+            { kind: 'word', value: 'he', codepoints: ['h', 'e'], start: 3, end: 5, index: 2 },
+            { kind: 'word', value: 'he', codepoints: ['h', 'e'], start: 3, end: 5, index: 2 }
         ]);
     });
     test('fuzzysort returns discontinuous matches', () => {
         const result = fuzzysort.single('sohe', fixtures[1]);
-        expect(indexes(result)).toEqual([0, 1, 6, 11]);
+        expect(getIndices(result)).toEqual([0, 1, 6, 11]);
+    });
+    test('associate search terms with tokens in order', () => {
+        const tokens = tokenize(fixtures[0]);
+        const terms = tokenizeSearchTerms('the soap');
+        const match = fuzzysort.single('the soap', fixtures[0]);
+        expect(getIndices(match)).toEqual([13, 14, 15, 16, 17, 18, 19, 20]);
+        const result = linkTermsToTokens(match, tokens, terms);
+
+        expect(result).toHaveLength(2);
+        expect(result[0].tokens.map(t => t.value)).toEqual(['the', 'the', 'the']);
+        expect(result[1].tokens.map(t => t.value)).toEqual(['soap', 'soap', 'soap', 'soap']);
+    });
+    test('associate search terms with tokens out of order', () => {
+        const tokens = tokenize(fixtures[1]);
+        const terms = tokenizeSearchTerms('not messy');
+        const match = fuzzysort.single('not messy', fixtures[1]);
+        expect(getIndices(match)).toEqual([50, 51, 52, 18, 19, 20, 21, 22]);
+        const result = linkTermsToTokens(match, tokens, terms);
+
+        expect(result).toHaveLength(2);
+        expect(result[0].tokens.map(t => t.value)).toEqual(['not', 'not', 'not']);
+        expect(result[1].tokens.map(t => t.value)).toEqual(['messy', 'messy', 'messy', 'messy', 'messy']);
+    });
+    test('associate search terms with split tokens', () => {
+        const tokens = tokenize(fixtures[2]);
+        const terms = tokenizeSearchTerms('quickbro');
+        const match = fuzzysort.single('quickbro', fixtures[2]);
+        expect(getIndices(match)).toEqual([4, 5, 6, 7, 8, 10, 11, 12]);
+        const result = linkTermsToTokens(match, tokens, terms);
+        expect(result).toHaveLength(1);
+        expect(result[0].term).toEqual(terms[0]);
+        expect(result[0].tokens.map(t => t.value)).toEqual(['quick', 'quick', 'quick', 'quick', 'quick', 'brown', 'brown', 'brown']);
+    });
+    test('associate search terms split by special characters (ie: non-whitespace, non-word)', () => {
+        const tokens = tokenize(fixtures[3]);
+        const terms = tokenizeSearchTerms(`kevin's`);
+        const match = fuzzysort.single(`kevin's`, fixtures[3]);
+        expect(getIndices(match)).toEqual([0, 1, 2, 3, 4, 5, 6]);
+        const result = linkTermsToTokens(match, tokens, terms);
+        expect(result[0].term).toEqual(terms[0]);
+        expect(mergeTokens(result[0].tokens).slice(0, 2)).toEqual([
+            tokens[0],
+            tokens[2]
+        ]);
     });
 });
 
 describe('tokenizer', () => {
+    test('merge adjacent tokens', () => {
+        const str = `Mary's little lamb`;
+        const tokens = indicesToTokens(tokenize(str,), (new Array(str.length)).fill(0).map((_, i) => i));
+        expect(tokens.map(t => t.value)).toEqual([
+            'Mary', 'Mary', 'Mary', 'Mary', '\'', 's', ' ',
+            'little', 'little', 'little', 'little', 'little', 'little',
+            ' ', 'lamb', 'lamb', 'lamb', 'lamb'
+        ])
+        const merged = mergeTokens(tokens);
+        expect(merged.map(t => t.value)).toEqual(['Mary', '\'', 's', ' ', 'little', ' ', 'lamb']);
+
+    });
     test('tokenize a search query', () => {
-        expect(tokenizeSearchQuery('red apple')).toEqual(['red', 'apple']);
-        expect(tokenizeSearchQuery(`sarah's automobile`)).toEqual(['sarahs', 'automobile']);
-        expect(tokenizeSearchQuery('first 2nd next-to-last')).toEqual(['first', '2nd', 'nexttolast']);
+        expect(tokenizeSearchTerms('red apple')).toEqual([{
+            value: 'red',
+            codepoints: ['r', 'e', 'd'],
+        }, {
+            value: 'apple',
+            codepoints: ['a', 'p', 'p', 'l', 'e']
+        }]);
+        expect(tokenizeSearchTerms(`sarah's automobile`)).toEqual([{
+            value: `sarahs`,
+            codepoints: ['s', 'a', 'r', 'a', 'h', 's']
+        }, {
+            value: 'automobile',
+            codepoints: ['a', 'u', 't', 'o', 'm', 'o', 'b', 'i', 'l', 'e']
+        }]);
+        expect(tokenizeSearchTerms('first 2nd next-to-last')).toEqual([{
+            value: 'first',
+            codepoints: ['f', 'i', 'r', 's', 't']
+        }, {
+            value: '2nd',
+            codepoints: ['2', 'n', 'd']
+        }, {
+            value: 'nexttolast',
+            codepoints: ['n', 'e', 'x', 't', 't', 'o', 'l', 'a', 's', 't']
+        }]);
     });
     test('tokenize a simple string', () => {
         const tokens = tokenize('Then he rinsed the soap off.');
         expect(tokens).toEqual([
-            { kind: 'word', value: 'Then', codepoints: ['T', 'h', 'e', 'n'], start: 0, end: 4 },
-            { kind: 'whitespace', value: ' ', codepoints: [' '], start: 4, end: 5 },
-            { kind: 'word', value: 'he', codepoints: ['h', 'e'], start: 5, end: 7 },
-            { kind: 'whitespace', value: ' ', codepoints: [' '], start: 7, end: 8 },
-            { kind: 'word', value: 'rinsed', codepoints: ['r', 'i', 'n', 's', 'e', 'd'], start: 8, end: 14 },
-            { kind: 'whitespace', value: ' ', codepoints: [' '], start: 14, end: 15 },
-            { kind: 'word', value: 'the', codepoints: ['t', 'h', 'e'], start: 15, end: 18 },
-            { kind: 'whitespace', value: ' ', codepoints: [' '], start: 18, end: 19 },
-            { kind: 'word', value: 'soap', codepoints: ['s', 'o', 'a', 'p'], start: 19, end: 23 },
-            { kind: 'whitespace', value: ' ', codepoints: [' '], start: 23, end: 24 },
-            { kind: 'word', value: 'off', codepoints: ['o', 'f', 'f'], start: 24, end: 27 },
-            { kind: 'other', value: '.', codepoints: ['.'], start: 27, end: 28 }
+            { kind: 'word', value: 'Then', codepoints: ['T', 'h', 'e', 'n'], start: 0, end: 4, index: 0 },
+            { kind: 'whitespace', value: ' ', codepoints: [' '], start: 4, end: 5, index: 1 },
+            { kind: 'word', value: 'he', codepoints: ['h', 'e'], start: 5, end: 7, index: 2 },
+            { kind: 'whitespace', value: ' ', codepoints: [' '], start: 7, end: 8, index: 3 },
+            { kind: 'word', value: 'rinsed', codepoints: ['r', 'i', 'n', 's', 'e', 'd'], start: 8, end: 14, index: 4 },
+            { kind: 'whitespace', value: ' ', codepoints: [' '], start: 14, end: 15, index: 5 },
+            { kind: 'word', value: 'the', codepoints: ['t', 'h', 'e'], start: 15, end: 18, index: 6 },
+            { kind: 'whitespace', value: ' ', codepoints: [' '], start: 18, end: 19, index: 7 },
+            { kind: 'word', value: 'soap', codepoints: ['s', 'o', 'a', 'p'], start: 19, end: 23, index: 8 },
+            { kind: 'whitespace', value: ' ', codepoints: [' '], start: 23, end: 24, index: 9 },
+            { kind: 'word', value: 'off', codepoints: ['o', 'f', 'f'], start: 24, end: 27, index: 10 },
+            { kind: 'other', value: '.', codepoints: ['.'], start: 27, end: 28, index: 11 }
         ]);
     });
     test('tokenize a more complex string', () => {
         const tokens = tokenize('Phil\twon 2nd place in the "race"!');
         expect(tokens).toEqual([
-            { kind: 'word', value: 'Phil', codepoints: ['P', 'h', 'i', 'l'], start: 0, end: 4 },
-            { kind: 'whitespace', value: '\t', codepoints: ['\t'], start: 4, end: 5 },
-            { kind: 'word', value: 'won', codepoints: ['w', 'o', 'n'], start: 5, end: 8 },
-            { kind: 'whitespace', value: ' ', codepoints: [' '], start: 8, end: 9 },
-            { kind: 'word', value: '2nd', codepoints: ['2', 'n', 'd'], start: 9, end: 12 },
-            { kind: 'whitespace', value: ' ', codepoints: [' '], start: 12, end: 13 },
-            { kind: 'word', value: 'place', codepoints: ['p', 'l', 'a', 'c', 'e'], start: 13, end: 18 },
-            { kind: 'whitespace', value: ' ', codepoints: [' '], start: 18, end: 19 },
-            { kind: 'word', value: 'in', codepoints: ['i', 'n'], start: 19, end: 21 },
-            { kind: 'whitespace', value: ' ', codepoints: [' '], start: 21, end: 22 },
-            { kind: 'word', value: 'the', codepoints: ['t', 'h', 'e'], start: 22, end: 25 },
-            { kind: 'whitespace', value: ' ', codepoints: [' '], start: 25, end: 26 },
-            { kind: 'other', value: '"', codepoints: ['"'], start: 26, end: 27 },
-            { kind: 'word', value: 'race', codepoints: ['r', 'a', 'c', 'e'], start: 27, end: 31 },
-            { kind: 'other', value: '"!', codepoints: ['"', '!'], start: 31, end: 33 }
+            { kind: 'word', value: 'Phil', codepoints: ['P', 'h', 'i', 'l'], start: 0, end: 4, index: 0 },
+            { kind: 'whitespace', value: '\t', codepoints: ['\t'], start: 4, end: 5, index: 1 },
+            { kind: 'word', value: 'won', codepoints: ['w', 'o', 'n'], start: 5, end: 8, index: 2 },
+            { kind: 'whitespace', value: ' ', codepoints: [' '], start: 8, end: 9, index: 3 },
+            { kind: 'word', value: '2nd', codepoints: ['2', 'n', 'd'], start: 9, end: 12, index: 4 },
+            { kind: 'whitespace', value: ' ', codepoints: [' '], start: 12, end: 13, index: 5 },
+            { kind: 'word', value: 'place', codepoints: ['p', 'l', 'a', 'c', 'e'], start: 13, end: 18, index: 6 },
+            { kind: 'whitespace', value: ' ', codepoints: [' '], start: 18, end: 19, index: 7 },
+            { kind: 'word', value: 'in', codepoints: ['i', 'n'], start: 19, end: 21, index: 8 },
+            { kind: 'whitespace', value: ' ', codepoints: [' '], start: 21, end: 22, index: 9 },
+            { kind: 'word', value: 'the', codepoints: ['t', 'h', 'e'], start: 22, end: 25, index: 10 },
+            { kind: 'whitespace', value: ' ', codepoints: [' '], start: 25, end: 26, index: 11 },
+            { kind: 'other', value: '"', codepoints: ['"'], start: 26, end: 27, index: 12 },
+            { kind: 'word', value: 'race', codepoints: ['r', 'a', 'c', 'e'], start: 27, end: 31, index: 13 },
+            { kind: 'other', value: '"!', codepoints: ['"', '!'], start: 31, end: 33, index: 14 }
         ]);
     });
-
-    test('locates a token containing a character at specific index', () => {
+    test('locate a token containing a character at specific index', () => {
         const tokens = tokenize('Phil\twon 2nd place in the "race"!');
         let index = findTokenIndex(tokens, 6);
-        expect(tokens[index]).toEqual({ kind: 'word', value: 'won', codepoints: ['w', 'o', 'n'], start: 5, end: 8 });
+        expect(tokens[index]).toEqual({ kind: 'word', value: 'won', codepoints: ['w', 'o', 'n'], start: 5, end: 8, index: 2 });
         index = findTokenIndex(tokens, 27);
-        expect(tokens[index]).toEqual({ kind: 'word', value: 'race', codepoints: ['r', 'a', 'c', 'e'], start: 27, end: 31 });
+        expect(tokens[index]).toEqual({ kind: 'word', value: 'race', codepoints: ['r', 'a', 'c', 'e'], start: 27, end: 31, index: 13 });
         index = findTokenIndex(tokens, 32);
-        expect(tokens[index]).toEqual({ kind: 'other', value: '"!', codepoints: ['"', '!'], start: 31, end: 33 });
+        expect(tokens[index]).toEqual({ kind: 'other', value: '"!', codepoints: ['"', '!'], start: 31, end: 33, index: 14 });
         index = findTokenIndex(tokens, 999);
         expect(index).toEqual(-1);
     });

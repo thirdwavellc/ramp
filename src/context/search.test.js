@@ -1,17 +1,50 @@
-import fuzzysort, { indexes } from 'fuzzysort';
-import { findTokenIndex, mergeTokens, indicesToTokens, tokenize, getIndices, tokenizeSearchTerms, linkTermsToTokens, validateMatch } from './search';
+import fuzzysort from 'fuzzysort';
+import { findTokenIndex, refineMatch, mergeTokens, indicesToTokens, tokenize, getIndices, tokenizeSearchTerms, linkTermsToTokens, validateMatch } from './search';
+
+describe('refinement', () => {
+    const fixture = 'However, this bottle was not marked “poison,” so Alice ventured to taste it';
+    test('fuzzysort can produce matches that are more fragmented than necessary', () => {
+        const query = 'tlewas';
+        const match = fuzzysort.single(query, fixture);
+        expect(getIndices(match)).toEqual([9, 18, 19, 21, 22, 23]);
+    });
+    test('get offset for the most truncated match', () => {
+        const query = 'tlewas';
+        const match = fuzzysort.single(query, fixture);
+        const refined = refineMatch(match, query);
+        expect(getIndices(match)).toEqual([18, 19, 21, 22, 23]);
+    });
+})
 
 describe('validation', () => {
     const fixtures = [
         'Her first idea was that she had somehow fallen into the sea, "and in that case I can go back by railway"',
         'The Mouse looked at her rather inquisitively, and seemed to her to wink with one of its little eyes',
-        'Just then her head struck against the roof of the hall: in fact she was now more than nine feet high'
+        'Just then her head struck against the roof of the hall: in fact she was now more than nine feet high',
+        'However, this bottle was not marked “poison,” so Alice ventured to taste it'
     ];
+
     test('a single term split across two complete tokens with whitespace in between will match', () => {
         const query = 'winkwith';
         const match = fuzzysort.single(query, fixtures[1]);
         expect(getIndices(match)).toEqual([67, 68, 69, 70, 72, 73, 74, 75]);
         expect(validateMatch(match, query)).toEqual(true);
+    });
+    test('a single term split across two tokens with only head of second token included will match', () => {
+        const query = 'struckagain';
+        const match = fuzzysort.single(query, fixtures[2]);
+        expect(getIndices(match)).toEqual([19, 20, 21, 22, 23, 24, 26, 27, 28, 29, 30]);
+        expect(validateMatch(match, query)).toEqual(true);
+    });
+    // test('a single term split across two tokens with only tail of first token included will match', () => {
+    //     const query = 'tlewas';
+    //     const match = fuzzysort.single(query, fixtures[3]);
+    //     expect(getIndices(match)).toEqual([19, 20, 21, 22, 23, 24, 26, 27, 28, 29, 30]);
+    //     expect(validateMatch(match, query)).toEqual(true);
+    // });
+
+    test('less than great matches can be refined', () => {
+
     });
     test('two whole terms separated by whitespace will match', () => {
         const query = 'somehow fallen';
@@ -56,6 +89,7 @@ describe('search', () => {
             { kind: 'word', value: 'he', codepoints: ['h', 'e'], start: 3, end: 5, index: 2 }
         ]);
     });
+
     test('fuzzysort returns discontinuous matches', () => {
         const result = fuzzysort.single('sohe', fixtures[1]);
         expect(getIndices(result)).toEqual([0, 1, 6, 11]);

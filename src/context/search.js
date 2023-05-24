@@ -5,12 +5,18 @@ import MiniSearch from 'minisearch';
 const wordRegexp = /[\d\p{General_Category=Letter}]/ug;
 
 /**
+ * @typedef PseudoMatch
+ * @property {string} target - the full text being matched
+ * @property {number[]} indices - indices the matched codepoints
+ */
+
+/** 
  * The ._indexes property is not a true array so using directly will result in unexpected, non-deterministic behavior
  * result._indexes.len is some magic value, anything beyond it can be discarded
  * @param {Fuzzysort.Result} result - a fuzzy search result object
  * @returns {number[]} the cleaned indices where matches occurred
  */
-export const getIndices = result => result._indexes.slice(0, result._indexes.len);
+export const getIndices = result => 'indices' in result ? result.indices : result._indexes.slice(0, result._indexes.len);
 /**
  * @typedef SearchTerm
  * @property {string} value - the text of the search term
@@ -214,7 +220,30 @@ export const linkTermsToTokens = (match, tokens, terms) => {
 }
 
 /**
- * @param {Fuzzysort.Result} match - a result object from fuzzysort
+ * 
+ * @param {Fuzzysort.Result} match - the fuzzysort result to match
+ * @param {string} query - the search query
+ */
+export const refineMatch = (match, query) => {
+    let offset = 0;
+    let result = match;
+    while (true) {
+        const indices = getIndices(result);
+        const start = indices.unshift() + 1;
+        const truncatedText = result.target.slice(start);
+        const truncatedResult = fuzzysort.go(match, query);
+        if (truncatedResult) {
+            offset += start;
+            result = truncatedResult;
+        } else {
+            break;
+        }
+    }
+    return getIndices(result).map(i => i + offset);
+}
+
+/**
+ * @param {Fuzzysort.Result|PseudoMatch} match - a result object from fuzzysort
  * @param {string} query - the search  query string
  */
 export const validateMatch = (match, query) => {
@@ -241,13 +270,13 @@ export const validateMatch = (match, query) => {
                 const nextToken = termMatch.tokens[tIdx + 1] ?? null;
 
                 if (token.start > cpIdx) continue;
-                if (token.end < cpIdx) {
-                    if (token.start <= cpIdx) console.log('left');
-                    if (token.end < cpIdx) console.log('right');
-                    console.log(token, lastToken, nextToken, cpIdx)
-                    throw new RangeError('codepoint does not fall within the token`')
-                    return false;
-                }
+                // if (token.end < cpIdx) {
+                //     if (token.start <= cpIdx) console.log('left');
+                //     if (token.end < cpIdx) console.log('right');
+                //     console.log(token, lastToken, nextToken, cpIdx)
+                //     throw new RangeError('codepoint does not fall within the token`')
+                //     return false;
+                // }
 
                 if (token !== nextToken) {
                     if (token === token0 && token.end - 1 !== cpIdx) {

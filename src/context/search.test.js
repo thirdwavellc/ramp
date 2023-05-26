@@ -77,6 +77,7 @@ describe('search', () => {
         'Kevin\'s dog is named Kalvin.'
     ];
     test('translating fuzzysort\'s results to tokens', () => {
+        /** @type {any} */
         const result = fuzzysort.single('sohe', fixtures[0]);
         const tokens = tokenize(fixtures[0]);
 

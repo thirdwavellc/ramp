@@ -8,6 +8,8 @@ import { checkManifestAnnotations, parseTranscriptData } from '@Services/transcr
 import './Transcript.scss';
 import { useFilteredTranscripts } from '../..//context/search';
 
+/** @typedef {import('../../context/search').TranscriptSearchResults} TranscriptSearchResults */
+/** @typedef {import('../..//context/search').TranscriptItem} TranscriptItem */
 
 
 const buildSpeakerText = (t, text) => {
@@ -32,7 +34,8 @@ const highlightTranscriptItem = (t) => (typeof t === 'string'
 const Transcript = ({ playerID, transcripts, showDownload: showSelect = true, showSearch = true }) => {
   const [canvasTranscripts, setCanvasTranscripts] = React.useState([]);
   const [transcript, _setTranscript] = React.useState([]);
-  const [filteredTranscripts, setFilteredTranscripts] = React.useState([]);
+  /** @type {[TranscriptSearchResults, React.Dispatch<React.SetStateAction<TranscriptSearchResults>>]} */
+  const [searchResults, setSearchResults] = React.useState(/** @type {TranscriptSearchResults} */ { results: {}, ids: [] });
   const [transcriptTitle, setTranscriptTitle] = React.useState('');
   const [transcriptUrl, setTranscriptUrl] = React.useState('');
   const [canvasIndex, _setCanvasIndex] = React.useState(0);
@@ -62,6 +65,7 @@ const Transcript = ({ playerID, transcripts, showDownload: showSelect = true, sh
 
   // React refs array for each timed text value in the transcript
   let textRefs = React.useRef([]);
+  /** @type React.MutableRefObject<HTMLDivElement> */
   const transcriptContainerRef = React.useRef();
   const transcriptRef = React.useRef(transcript);
   const setTranscript = (t) => {
@@ -70,9 +74,8 @@ const Transcript = ({ playerID, transcripts, showDownload: showSelect = true, sh
   };
   useFilteredTranscripts({
     enabled: true,
-    onlyMatches: true,
     query: searchQuery,
-    setFilteredTranscripts,
+    setSearchResults,
     transcripts: transcript
   })
 
@@ -160,9 +163,9 @@ const Transcript = ({ playerID, transcripts, showDownload: showSelect = true, sh
      * OR canvas' transcript items list is empty
      */
     if (
-      !transcripts?.length > 0 ||
-      !getCanvasT(transcripts)?.length > 0 ||
-      !getTItems(transcripts)?.length > 0
+      !(transcripts && transcripts.length > 0) ||
+      !(getCanvasT(transcripts) && getCanvasT(transcripts).length > 0) ||
+      !(getTItems(transcripts) && getTItems(transcripts).length > 0)
     ) {
       setIsLoading(false);
       setIsEmpty(true);
@@ -263,7 +266,7 @@ const Transcript = ({ playerID, transcripts, showDownload: showSelect = true, sh
     }
 
     // Auto scroll the transcript
-    let parentTopOffset = transcriptContainerRef.current.offsetTop;
+    let parentTopOffset = transcriptContainerRef.current ? transcriptContainerRef.current.offsetTop : 0;
     // divide by 2 to vertically center the highlighted text
     transcriptContainerRef.current.scrollTop =
       textTopOffset -
@@ -338,50 +341,87 @@ const Transcript = ({ playerID, transcripts, showDownload: showSelect = true, sh
     setIsMouseOver(state);
   };
 
+  let showOnlyMatches = true;
 
+  console.log(searchQuery, transcriptUrl, timedText.length)
   if (transcriptRef.current) {
-    if (filteredTranscripts && filteredTranscripts.length > 0) {
-      if (typeof filteredTranscripts[0].item == 'string') {
+    if (transcripts && transcripts.length > 0) {
+      if (typeof transcript[0] == 'string') {
         // when given a word document as a transcript
         timedText.push(
           <div
+            key={0}
             data-testid="transcript_docs"
-            dangerouslySetInnerHTML={{ __html: highlightTranscriptItem(filteredTranscripts[0].item) }}
+            dangerouslySetInnerHTML={{ __html: highlightTranscriptItem(transcript[0]) }}
           />
         );
-      } else {
-        // timed transcripts
-        filteredTranscripts.forEach((t, index) => {
-          let line = (
+      } else if (showOnlyMatches && searchQuery) {
+        searchResults.ids.forEach((id) => {
+          const match = searchResults.results[id];
+          const item = /** @type {TranscriptItem} */(match.item);
+          timedText.push((
             <div
               className="ramp--transcript_item"
               data-testid="transcript_item"
-              key={index}
-              ref={(el) => (textRefs.current[index] = el)}
+              key={id}
+              ref={(el) => (textRefs.current[id] = el)}
               onClick={handleTranscriptTextClick}
-              starttime={t.item.begin} // set custom attribute: starttime
-              endtime={t.item.end} // set custom attribute: endtime
+              starttime={item.begin} // set custom attribute: starttime
+              endtime={item.end} // set custom attribute: endtime
             >
-              {t.item.begin && (
+              {item.begin && (
                 <span
                   className="ramp--transcript_time"
                   data-testid="transcript_time"
                 >
-                  <a href={'#'}>[{createTimestamp(t.item.begin, true)}]</a>
+                  <a href={'#'}>[{createTimestamp(item.begin, true)}]</a>
                 </span>
               )}
 
               <span
                 className="ramp--transcript_text"
                 data-testid="transcript_text"
-                dangerouslySetInnerHTML={{ __html: buildSpeakerText(t, highlightTranscriptItem(t)) }}
+                dangerouslySetInnerHTML={{ __html: buildSpeakerText(match.item, highlightTranscriptItem(match)) }}
               />
             </div>
-          );
-          timedText.push(line);
+          ));
+        });
+      } else {
+        // timed transcripts
+        transcript.forEach((t, index) => {
+          console.log(`trigger3 :: ${index}`, t);
+          const match = searchResults.results[index];
+          const item = /** @type {TranscriptItem} */(match && match.item ? match.item : t);
+          timedText.push((
+            <div
+              className="ramp--transcript_item"
+              data-testid="transcript_item"
+              key={index}
+              ref={(el) => (textRefs.current[index] = el)}
+              onClick={handleTranscriptTextClick}
+              starttime={item.begin} // set custom attribute: starttime
+              endtime={item.end} // set custom attribute: endtime
+            >
+              {item.begin && (
+                <span
+                  className="ramp--transcript_time"
+                  data-testid="transcript_time"
+                >
+                  <a href={'#'}>[{createTimestamp(item.begin, true)}]</a>
+                </span>
+              )}
+
+              <span
+                className="ramp--transcript_text"
+                data-testid="transcript_text"
+                dangerouslySetInnerHTML={{ __html: buildSpeakerText(item, highlightTranscriptItem(match ? match : t)) }}
+              />
+            </div>
+          ));
         });
       }
     } else {
+      // console.log('trigger4');
       // invalid transcripts
       timedText.push(
         <p key="no-transcript" id="no-transcript" data-testid="no-transcript">
@@ -390,8 +430,8 @@ const Transcript = ({ playerID, transcripts, showDownload: showSelect = true, sh
       );
     }
   }
-
   if (!isLoading) {
+    console.log('trigger5', timedText[0]?.key);
     return (
       <div
         className="ramp--transcript_nav"
@@ -412,7 +452,7 @@ const Transcript = ({ playerID, transcripts, showDownload: showSelect = true, sh
               />
             )}
             {showSearch && (
-              <TranscriptSearch setSearchQuery={setSearchQuery} />
+              <TranscriptSearch setSearchQuery={setSearchQuery} searchResults={searchResults} />
             )}
           </div>
         )}

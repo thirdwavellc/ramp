@@ -17,13 +17,57 @@ import PropTypes from 'prop-types';
  * @param {TranscriptSearchProps} props
  */
 const TranscriptSearch = ({ setSearchQuery, searchQuery, searchResults, setFocusedLine, focusedMatchIndex }) => {
-    const queryRef = useRef(null);
+    const searchInputRef = useRef(null);
+    let resultNavigation = null;
+    if (searchQuery !== null && searchQuery.replace(/\s/g, '') !== '') {
+        if (searchResults.ids.length === 0) {
+            resultNavigation = (
+                <div className="ramp--transcript_search-navigator">
+                    <span className="ramp--transcript_search-count">no results found</span>
+                </div>
+            );
+        } else {
+            if (focusedMatchIndex !== null) {
+                resultNavigation = (
+                    <div className="ramp--transcript_search-navigator">
+                        <button
+                            className="ramp--transcript_search-prev"
+                            type="button"
+                            disabled={focusedMatchIndex === 0}
+                            title="Previous Search Result"
+                            onClick={e => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                setFocusedLine(searchResults.ids[focusedMatchIndex - 1]);
+                            }}
+                        >
+                            Previous
+                        </button>
+                        <span className="ramp--transcript_search-count">{focusedMatchIndex + 1} of {searchResults.ids.length}</span>
+                        <button
+                            className="ramp--transcript_search-next"
+                            type="button"
+                            disabled={focusedMatchIndex === searchResults.ids.length - 1}
+                            title="Next Search Result"
+                            onClick={e => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                setFocusedLine(searchResults.ids[focusedMatchIndex + 1]);
+                            }}
+                        >
+                            Next
+                        </button>
+                    </div>
+                );
+            }
+        }
+    }
     return (
         <div className="ramp--transcript_search">
             <div className="ramp--transcript_search-input-container">
                 <input
                     type="text"
-                    ref={queryRef}
+                    ref={searchInputRef}
                     className="ramp--transcript_search-input"
                     aria-label="Search the transcript"
                     placeholder="Search Transcript..."
@@ -36,49 +80,12 @@ const TranscriptSearch = ({ setSearchQuery, searchQuery, searchResults, setFocus
                     className="ramp--transcript_search-clear"
                     onClick={() => {
                         setSearchQuery(null);
-                        if (queryRef.current) queryRef.current.value = '';
+                        if (searchInputRef.current) searchInputRef.current.value = '';
                     }}
-                    disabled={searchQuery === null}
+                    disabled={searchQuery === null || searchQuery.replace(/\s/g, '') === ''}
                 >{searchQuery !== null ? 'clear' : ''}</button>
             </div>
-            {searchResults.ids.length > 0 && focusedMatchIndex !== null && (
-                <div className="ramp--transcript_search-navigator">
-                    <button
-                        className="ramp--transcript_search-prev"
-                        type="button"
-                        disabled={focusedMatchIndex === 0}
-                        title="Previous Search Result"
-                        onClick={e => {
-                            e.preventDefault();
-                            e.stopPropagation();
-                            // console.log(`matchIdx: ${focusedMatchIndex} // prev id (unscored): ${searchResults.ids[focusedMatchIndex - 1]} // prev id (scored): ${searchResults.idsScored[focusedMatchIndex - 1]}`)
-                            setFocusedLine(searchResults.ids[focusedMatchIndex - 1]);
-                        }}
-                    >
-                        Previous
-                    </button>
-                    <span className="ramp--transcript_search-count">{focusedMatchIndex + 1} of {searchResults.ids.length}</span>
-                    <button
-                        className="ramp--transcript_search-next"
-                        type="button"
-                        disabled={focusedMatchIndex === searchResults.ids.length - 1}
-                        title="Next Search Result"
-                        onClick={e => {
-                            e.preventDefault();
-                            e.stopPropagation();
-                            console.log({
-                                text: `matchIdx: ${focusedMatchIndex} focusId: ${searchResults.ids[focusedMatchIndex]} next focusId: ${searchResults.ids[focusedMatchIndex + 1]}`,
-                                current: searchResults.results[searchResults.ids[focusedMatchIndex]],
-                                next: searchResults.results[searchResults.ids[focusedMatchIndex + 1]],
-                            });
-                            // console.log(`matchIdx: ${focusedMatchIndex} // next id (unscored): ${searchResults.ids[focusedMatchIndex + 1]} // next id (scored): ${searchResults.idsScored[focusedMatchIndex + 1]}`)
-                            setFocusedLine(searchResults.ids[focusedMatchIndex + 1]);
-                        }}
-                    >
-                        Next
-                    </button>
-                </div>
-            )}
+            {resultNavigation}
         </div>
     );
 };

@@ -366,7 +366,6 @@ const defaultMatcher = (query, items) => {
             : { id: idx, ...item }
         )
     ));
-    console.log(`"${query}" results:`, wrapped);
     const highlightedResults = fuzzysort.go(query, wrapped, { key: 'text' });
     return highlightedResults.map((/** @type {any} */match, i) => ({
         item: match.obj,

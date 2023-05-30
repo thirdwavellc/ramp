@@ -316,6 +316,15 @@ export const validateMatch = (match, query) => {
 
 /**
  * @typedef TranscriptItem
+ * @property {number} id - The id (index) of the transcript item (for transcripts split into lines)
+ * @property {number} [begin] - The begin time in seconds
+ * @property {number} [end] - The end time in seconds
+ * @property {string} text - The text of the transcript item
+ * @property {string} [format] - The id of the transcript item
+*/
+/**
+ * @typedef TimedTranscriptItem
+ * @property {number} id - The id (index) of the transcript item (for transcripts split into lines)
  * @property {number} begin - The begin time in seconds
  * @property {number} end - The end time in seconds
  * @property {string} text - The text of the transcript item
@@ -326,7 +335,7 @@ export const validateMatch = (match, query) => {
  * @property {TranscriptItem|string} item - the original unmodified transcript item
  * @property {string[]} highlighted - the highlighted text (string at odd indices are matches and will be highlighted)
  * @property {number} score - score of the match
- * @property {string|number} id - the id of the transcript item
+ * @property {number} id - the id of the transcript item
  */
 
 let searchStore = null;
@@ -375,8 +384,9 @@ const defaultSorter = (items) => items;
 
 /**
  * @typedef TranscriptSearchResults
- * @property {Record<string|number, TranscriptItemSearchMatch} results - all matching search results mapped by id
- * @property {(number|string)[]} ids - the ids (indexes)of the matching search results, sorted by score
+ * @property {Record<number, TranscriptItemSearchMatch>} results - all matching search results mapped by id
+ * @property {number[]} idsScored - the ids (indexes) of the matching search results, sorted by score
+ * @property {number[]} ids - the ids (indexes) of the matching search results, chronologically
  */
 
 /**
@@ -404,7 +414,7 @@ export function useFilteredTranscripts({
     useEffect(() => {
         if (!transcripts) return;
         if (!enabled || !query || !transcripts.length) {
-            setSearchResults({ results: {}, ids: [] });
+            setSearchResults({ results: {}, ids: [], idsScored: [] });
             return;
         }
         const abortController = new AbortController();
@@ -418,24 +428,19 @@ export function useFilteredTranscripts({
 
 
                 if (matches.length) {
-                    // if (typeof transcripts[0] === 'string') {
                     setSearchResults({
-                        results: matches.reduce((acc, match) => {
-                            console.log(match.id, match);
-                            return {
-                                // matches: matches.reduce((acc, match) => ({
-                                ...acc,
-                                [match.id]: match
-                            };
-                        }, {}),
-                        // }), {}),
-                        ids: matches.map(match => match.id)
+                        results: matches.reduce((acc, match) => ({
+                            ...acc,
+                            [match.id]: match
+                        }), {}),
+                        idsScored: matches.map(match => match.id),
+                        ids: matches.map(match => match.id).sort((a, b) => a - b)
                     });
-
                 } else {
                     setSearchResults({
                         results: {},
-                        ids: []
+                        ids: [],
+                        idsScored: []
                     });
                 }
             })

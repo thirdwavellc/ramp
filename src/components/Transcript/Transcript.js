@@ -436,6 +436,15 @@ const Transcript = ({ playerID, transcripts, showDownload: showSelect = true, sh
       >
         {!isEmptyRef.current && (
           <div className="ramp--transcript_menu">
+            {showSearch && (
+              <TranscriptSearch
+                searchQuery={searchQuery}
+                setSearchQuery={setSearchQuery}
+                searchResults={searchResults}
+                focusedMatchIndex={focusedMatchIndex}
+                setFocusedLine={setFocusedLine}
+              />
+            )}
             {showSelect && (
               <TranscriptSelector
                 setTranscript={selectTranscript}
@@ -443,14 +452,6 @@ const Transcript = ({ playerID, transcripts, showDownload: showSelect = true, sh
                 url={transcriptUrl}
                 transcriptData={canvasTranscripts}
                 noTranscript={timedText[0]?.key}
-              />
-            )}
-            {showSearch && (
-              <TranscriptSearch
-                setSearchQuery={setSearchQuery}
-                searchResults={searchResults}
-                focusedMatchIndex={focusedMatchIndex}
-                setFocusedLine={setFocusedLine}
               />
             )}
           </div>

@@ -31,7 +31,7 @@ import config from '../../../env.js';
   playerID="iiif-media-player"
   transcripts={[
     {
-      canvasId: 0,
+      canvasId: 5,
       items: [
         {
           // Structured JSON blob fed directly from a server

@@ -1,6 +1,7 @@
-@import './vars';
+@import "./vars";
+@import "./thm-style";
 
-[class*='ramp--'] {
+[class*="ramp--"] {
   font-family: $fontPrimary;
   color: $primaryDark;
 }

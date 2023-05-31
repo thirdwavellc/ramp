@@ -4,9 +4,15 @@ div.iiif-player-demo {
     width: 40%;
   }
 
-  .ramp--transcript_nav {
-    float: right;
-    width: 60%;
-    margin-left: -20px;
+  &.full-width .ramp--transcript_nav {
+    padding: 10px 0;
+  }
+
+  &:not(.full-width) {
+    & .ramp--transcript_nav {
+      float: right;
+      width: 60%;
+      margin-left: -20px;
+    }
   }
 }

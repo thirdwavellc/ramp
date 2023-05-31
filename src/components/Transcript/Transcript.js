@@ -1,13 +1,16 @@
-import React from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import PropTypes from 'prop-types';
 import 'lodash';
 import TranscriptSelector from './TranscriptMenu/TranscriptSelector';
 import TranscriptSearch from './TranscriptMenu/TranscriptSearch';
-import { checkSrcRange, createTimestamp, getMediaFragment } from '@Services/utility-helpers';
+import { createTimestamp } from '@Services/utility-helpers';
 import { checkManifestAnnotations, parseTranscriptData } from '@Services/transcript-parser';
 import './Transcript.scss';
 import { useFilteredTranscripts } from '../..//context/search';
 
+/** @typedef {import('../../context/search').TranscriptSearchResults} TranscriptSearchResults */
+/** @typedef {import('../..//context/search').TranscriptItem} TranscriptItem */
+/** @typedef {import('../..//context/search').TimedTranscriptItem} TimedTranscriptItem */
 
 
 const buildSpeakerText = (t, text) => {
@@ -29,10 +32,14 @@ const highlightTranscriptItem = (t) => (typeof t === 'string'
   )
 );
 
-const Transcript = ({ playerID, transcripts, showDownload: showSelect = true, showSearch = true }) => {
+export const Transcript = ({ playerID, transcripts, showDownload: showSelect = true, showSearch = true }) => {
   const [canvasTranscripts, setCanvasTranscripts] = React.useState([]);
+  /** @type {[TranscriptItem[], React.Dispatch<React.SetStateAction<TranscriptItem[]>>]} */
   const [transcript, _setTranscript] = React.useState([]);
-  const [filteredTranscripts, setFilteredTranscripts] = React.useState([]);
+  /** @type {[TranscriptSearchResults, React.Dispatch<React.SetStateAction<TranscriptSearchResults>>]} */
+  const [searchResults, setSearchResults] = React.useState(/** @type {TranscriptSearchResults} */ { results: {}, ids: [], idsScored: [] });
+  const searchResultsRef = useRef(searchResults);
+  searchResultsRef.current = searchResults;
   const [transcriptTitle, setTranscriptTitle] = React.useState('');
   const [transcriptUrl, setTranscriptUrl] = React.useState('');
   const [canvasIndex, _setCanvasIndex] = React.useState(0);
@@ -43,90 +50,184 @@ const Transcript = ({ playerID, transcripts, showDownload: showSelect = true, sh
   let isMouseOver = false;
   // Setup refs to access state information within
   // event handler function
-  const isMouseOverRef = React.useRef(isMouseOver);
+  const isMouseOverRef = useRef(isMouseOver);
   const setIsMouseOver = (state) => {
     isMouseOverRef.current = state;
     isMouseOver = state;
   };
 
-  const isEmptyRef = React.useRef(false);
+  const isEmptyRef = useRef(false);
   const setIsEmpty = (e) => {
     isEmptyRef.current = e;
   };
 
-  const canvasIndexRef = React.useRef();
+  const canvasIndexRef = useRef();
   const setCanvasIndex = (c) => {
     canvasIndexRef.current = c;
     _setCanvasIndex(c);
   };
 
   // React refs array for each timed text value in the transcript
-  let textRefs = React.useRef([]);
-  const transcriptContainerRef = React.useRef();
-  const transcriptRef = React.useRef(transcript);
+  /** @type {React.MutableRefObject<Record<string|number, HTMLDivElement>>} */
+  const textRefs = useRef({});
+
+  /** @type React.MutableRefObject<HTMLDivElement> */
+  const transcriptContainerRef = useRef(null);
+  const transcriptRef = useRef(transcript);
   const setTranscript = (t) => {
-    transcriptRef.current = t;
-    _setTranscript(t);
+    if (!t) return [];
+    const temp = t.map((item, idx) => {
+      if (typeof item === 'string') {
+        return { text: item, id: idx };
+      } else {
+        return { ...item, id: idx };
+      }
+    });
+    transcriptRef.current = temp;
+    _setTranscript(temp);
   };
+
+  const areTranscriptsSplit = useMemo(() => {
+    if (transcript.length && typeof transcript[0] === 'string') return false;
+    else return true;
+  }, [transcript]);
+
+  const areTranscriptsTimed = useMemo(() => {
+    if (transcript.length && areTranscriptsSplit) {
+      if ('begin' in transcript[0] && typeof transcript[0].begin === 'number') return true;
+    } else return false;
+  }, [transcript, areTranscriptsSplit]);
+
   useFilteredTranscripts({
     enabled: true,
-    onlyMatches: true,
     query: searchQuery,
-    setFilteredTranscripts,
+    setSearchResults,
     transcripts: transcript
-  })
+  });
+
+  /**
+   * @param {HTMLDivElement} textRef  - dom node to center on
+   */
+  const scrollToRef = (textRef) => {
+    if (!textRef) return;
+    if (!transcriptContainerRef.current) return;
+    let parentTopOffset = transcriptContainerRef.current ? transcriptContainerRef.current.offsetTop : 0;
+    transcriptContainerRef.current.scrollTop = (
+      textRef.offsetTop -
+      parentTopOffset -
+      transcriptContainerRef.current.clientHeight / 2
+    );
+  };
 
   let timedText = [];
 
-  let player = null;
+  /** @type {[null|number, React.Dispatch<null|number>]} */
+  const [focusedLine, setFocusedLine] = useState(null);
+  /** @type {[null|number, React.Dispatch<null|number>]} */
+  const [focusedMatchIndex, setFocusedMatchIndex] = useState(null);
 
-  React.useEffect(() => {
-    setTimeout(function () {
-      const domPlayer = document.getElementById(playerID);
-      if (!domPlayer) {
-        console.error(
-          "Cannot find player, '" +
-          playerID +
-          "' on page. Transcript synchronization is disabled."
-        );
-      } else {
-        player = domPlayer.children[0];
+  /** @type {{current: number | null}} */
+  let lastFocusedLine = useRef(focusedLine);
+  useEffect(() => {
+    /** @type {HTMLDivElement|null} */
+    let refToFocus = null;
+    if (focusedLine === null) {
+      const nextFocus = searchResults.results[searchResults.ids[0]];
+      if (searchResults.ids.length > 0) {
+        setFocusedLine(nextFocus.id);
+        setFocusedMatchIndex(0);
+        refToFocus = textRefs.current[nextFocus.id];
       }
-      if (player) {
-        observeCanvasChange(player);
-        player.dataset['canvasindex']
-          ? setCanvasIndex(player.dataset['canvasindex'])
-          : setCanvasIndex(0);
-        player.addEventListener('timeupdate', function (e) {
-          if (e == null || e.target == null) {
-            return;
-          }
-          const currentTime = e.target.currentTime;
-          textRefs.current.map((tr) => {
-            if (tr) {
-              const start = tr.getAttribute('starttime');
-              const end = tr.getAttribute('endtime');
-              if (currentTime >= start && currentTime <= end) {
-                !tr.classList.contains('active')
-                  ? autoScrollAndHighlight(currentTime, tr)
-                  : null;
-              } else {
-                // remove highlight
-                tr.classList.remove('active');
-              }
-            }
-          });
-        });
+    } else { // a line is currently focused
+      const matchIndex = searchResults.ids.indexOf(focusedLine);
+      if (searchResults.ids.length === 0) {
+        if (searchQuery !== null && searchQuery.replace(/\s/g, '') !== '') {
+          setFocusedMatchIndex(-1);
+          setFocusedLine(0);
+        } else {
+          setFocusedMatchIndex(-1);
+        }
+      } else if (matchIndex !== -1) { // currently focused line is in the new result set, maintain focus on it
+        if (focusedLine !== lastFocusedLine.current) {
+          refToFocus = textRefs.current[focusedLine];
+        }
+        setFocusedMatchIndex(matchIndex);
+        const nextID = searchResults.ids[matchIndex];
+        setFocusedLine(nextID);
+        refToFocus = textRefs.current[nextID];
+      } else if (focusedMatchIndex >= searchResults.ids.length) {
+        setFocusedLine(searchResults.ids[searchResults.ids.length - 1]);
+        setFocusedMatchIndex(searchResults.ids.length - 1);
+        refToFocus = textRefs.current[searchResults.ids[searchResults.ids.length - 1]];
+      } else if (searchResults.ids.length > 0) {
+        if (focusedMatchIndex === -1) {
+          setFocusedMatchIndex(0);
+          const nextID = searchResults.ids[0];
+          setFocusedLine(nextID);
+          refToFocus = textRefs.current[nextID];
+        } else if (typeof focusedMatchIndex === 'number') {
+          const nextID = searchResults.ids[focusedMatchIndex];
+          setFocusedLine(nextID);
+          refToFocus = textRefs.current[nextID];
+        }
+      }
+    }
+    lastFocusedLine.current = focusedLine;
+    if (refToFocus) {
+      setTimeout(() => scrollToRef(refToFocus), 200);
+    }
+  }, [searchResults, focusedLine, transcript, focusedMatchIndex]);
 
-        player.addEventListener('ended', function (e) {
+  /** @type {[null|HTMLVideoElement, React.Dispatch<null|HTMLVideoElement>]} */
+  const [player, setPlayer] = useState(null);
+  const navigateToLine = (id) => {
+    const line = transcript[id];
+    if (player && areTranscriptsTimed && line) {
+      player.currentTime = line.begin;
+    }
+    setFocusedLine(id);
+  };
+
+  /** @type {React.MutableRefObject<((this: HTMLVideoElement, ev: Event & { target: HTMLVideoElement }) => any)>} */
+  const onPlaybackRef = useRef();
+  onPlaybackRef.current = e => {
+    if (e == null || e.target == null || !areTranscriptsTimed) {
+      return;
+    }
+    const currentTime = e.target.currentTime;
+    for (const transcriptLine of /** @type {TimedTranscriptItem[]} */ (transcript)) {
+      if (currentTime >= transcriptLine.begin && currentTime <= transcriptLine.end) {
+        setFocusedLine(transcriptLine.id);
+      }
+    }
+  };
+
+  useEffect(() => {
+    setTimeout(() => {
+      const domPlayer = document.getElementById(playerID);
+      /** @type {HTMLVideoElement|null} */
+      let playerEl = null;
+      if (!domPlayer) {
+        console.error(`Cannot find player, ${playerID} on page.Transcript synchronization is disabled.`);
+      } else {
+        playerEl = /** @type {HTMLVideoElement} */ (domPlayer.children[0]);
+        setPlayer(playerEl);
+      }
+      if (playerEl) {
+        playerEl.dataset['canvasindex']
+          ? setCanvasIndex(playerEl.dataset['canvasindex'])
+          : setCanvasIndex(0);
+        playerEl.addEventListener('timeupdate', function (e) { return onPlaybackRef.current.call(this, e); });
+
+        playerEl.addEventListener('ended', e => {
           // render next canvas related transcripts
           setCanvasIndex(canvasIndex + 1);
         });
       }
     });
-  });
+  }, []);
 
-  React.useEffect(() => {
+  useEffect(() => {
     // Clean up state on component unmount
     return () => {
       setCanvasTranscripts([]);
@@ -134,7 +235,7 @@ const Transcript = ({ playerID, transcripts, showDownload: showSelect = true, sh
       setTranscriptTitle('');
       setTranscriptUrl('');
       setCanvasIndex();
-      player = null;
+      setPlayer(null);
       isMouseOver = false;
       timedText = [];
     };
@@ -147,22 +248,18 @@ const Transcript = ({ playerID, transcripts, showDownload: showSelect = true, sh
   }, []);
 
 
-  React.useEffect(() => {
-    let getCanvasT = (tr) => {
-      return tr.filter((t) => t.canvasId == canvasIndex);
-    };
-    let getTItems = (tr) => {
-      return getCanvasT(tr)[0].items;
-    };
+  useEffect(() => {
+    const getCanvasT = tr => tr.filter((t) => t.canvasId == canvasIndex);
+    const getTItems = tr => getCanvasT(tr)[0].items;
     /**
      * When transcripts prop is empty
      * OR the respective canvas doesn't have transcript data
      * OR canvas' transcript items list is empty
      */
     if (
-      !transcripts?.length > 0 ||
-      !getCanvasT(transcripts)?.length > 0 ||
-      !getTItems(transcripts)?.length > 0
+      !(transcripts && transcripts.length > 0) ||
+      !(getCanvasT(transcripts) && getCanvasT(transcripts).length > 0) ||
+      !(getTItems(transcripts) && getTItems(transcripts).length > 0)
     ) {
       setIsLoading(false);
       setIsEmpty(true);
@@ -183,12 +280,11 @@ const Transcript = ({ playerID, transcripts, showDownload: showSelect = true, sh
     const config = { attributes: true, childList: true, subtree: true };
 
     // Callback function to execute when mutations are observed
-    const callback = function (mutationsList, observer) {
+    const callback = (mutationsList) => {
       // Use traditional 'for loops' for IE 11
       for (const mutation of mutationsList) {
         if (mutation.attributeName?.includes('src')) {
-          const p =
-            document.querySelector('video') || document.querySelector('audio');
+          const p = document.querySelector('video') || document.querySelector('audio');
           if (p) {
             setCanvasIndex(parseInt(p.dataset['canvasindex']));
           }
@@ -204,9 +300,7 @@ const Transcript = ({ playerID, transcripts, showDownload: showSelect = true, sh
   };
 
   const selectTranscript = (selectedTitle) => {
-    const selectedTranscript = canvasTranscripts.filter(function (tr) {
-      return tr.title === selectedTitle;
-    });
+    const selectedTranscript = canvasTranscripts.filter(tr => tr.title === selectedTitle);
     setStateVar(selectedTranscript[0]);
   };
 
@@ -237,99 +331,6 @@ const Transcript = ({ playerID, transcripts, showDownload: showSelect = true, sh
     });
   };
 
-  const autoScrollAndHighlight = (currentTime, tr) => {
-    if (!tr) {
-      return;
-    }
-
-    // Highlight clicked/current time's transcript text
-    let textTopOffset = 0;
-    const start = tr.getAttribute('starttime');
-    const end = tr.getAttribute('endtime');
-    if (!start || !end) {
-      return;
-    }
-    if (currentTime >= start && currentTime <= end) {
-      tr.classList.add('active');
-      textTopOffset = tr.offsetTop;
-    } else {
-      tr.classList.remove('active');
-    }
-
-    // When using the transcript panel to scroll/select text
-    // return without auto scrolling
-    if (isMouseOverRef.current) {
-      return;
-    }
-
-    // Auto scroll the transcript
-    let parentTopOffset = transcriptContainerRef.current.offsetTop;
-    // divide by 2 to vertically center the highlighted text
-    transcriptContainerRef.current.scrollTop =
-      textTopOffset -
-      parentTopOffset -
-      transcriptContainerRef.current.clientHeight / 2;
-  };
-
-  /**
-   * Playable range in the player
-   * @returns {Object}
-   */
-  const getPlayerDuration = () => {
-    const duration = player.duration;
-    let timeFragment = getMediaFragment(player.src, duration);
-    if (timeFragment == undefined) {
-      timeFragment = { start: 0, end: duration };
-    }
-    return timeFragment;
-  };
-
-  /**
-   * Determine a transcript text line is within playable
-   * range
-   * @param {Object} ele target element from click event
-   * @returns {Boolean}
-   */
-  const getIsClickable = (ele) => {
-    const segmentRange = {
-      start: Number(ele.getAttribute('starttime')),
-      end: Number(ele.getAttribute('endtime')),
-    };
-    const playerRange = getPlayerDuration();
-    const isInRange = checkSrcRange(segmentRange, playerRange);
-    return isInRange;
-  };
-
-  /**
-   * When clicked on a transcript text seek to the respective
-   * timestamp in the player
-   * @param {Object} e event for the click
-   */
-  const handleTranscriptTextClick = (e) => {
-    e.preventDefault();
-
-    /**
-     * Disregard the click, which uses the commented out lines
-     * or reset the player to the start time (the current functionality)
-     * when clicked on a transcript line that is out of playable range.
-     *  */
-    // const parentEle = e.target.parentElement;
-    // const isClickable = getIsClickable(parentEle);
-
-    // if (isClickable) {
-    if (player) {
-      player.currentTime = e.currentTarget.getAttribute('starttime');
-    }
-
-    textRefs.current.map((tr) => {
-      if (tr && tr.classList.contains('active')) {
-        tr.classList.remove('active');
-      }
-    });
-    e.currentTarget.classList.add('active');
-    // }
-  };
-
   /**
    * Update state based on mouse events - hover or not hover
    * @param {Boolean} state flag identifying mouse event
@@ -340,45 +341,50 @@ const Transcript = ({ playerID, transcripts, showDownload: showSelect = true, sh
 
 
   if (transcriptRef.current) {
-    if (filteredTranscripts && filteredTranscripts.length > 0) {
-      if (typeof filteredTranscripts[0].item == 'string') {
+    if (transcripts && transcripts.length > 0) {
+      if (typeof transcript[0] == 'string') {
         // when given a word document as a transcript
         timedText.push(
           <div
+            key={0}
             data-testid="transcript_docs"
-            dangerouslySetInnerHTML={{ __html: highlightTranscriptItem(filteredTranscripts[0].item) }}
+            dangerouslySetInnerHTML={{ __html: highlightTranscriptItem(transcript[0]) }}
           />
         );
       } else {
         // timed transcripts
-        filteredTranscripts.forEach((t, index) => {
-          let line = (
+        transcript.forEach(t => {
+          const match = searchResults.results[t.id];
+          const item = /** @type {TranscriptItem} */(match && match.item ? match.item : t);
+          timedText.push(
             <div
-              className="ramp--transcript_item"
+              className={`ramp--transcript_item${t.id === focusedLine ? ' active' : ''}`}
               data-testid="transcript_item"
-              key={index}
-              ref={(el) => (textRefs.current[index] = el)}
-              onClick={handleTranscriptTextClick}
-              starttime={t.item.begin} // set custom attribute: starttime
-              endtime={t.item.end} // set custom attribute: endtime
+              key={t.id}
+              ref={(el) => (textRefs.current[t.id] = el)}
+              onClick={e => {
+                e.preventDefault();
+                e.stopPropagation();
+                setFocusedLine(t.id);
+                navigateToLine(t.id);
+              }}
             >
-              {t.item.begin && (
+              {item.begin && (
                 <span
                   className="ramp--transcript_time"
                   data-testid="transcript_time"
                 >
-                  <a href={'#'}>[{createTimestamp(t.item.begin, true)}]</a>
+                  <a href={'#'}>[{createTimestamp(item.begin, true)}]</a>
                 </span>
               )}
 
               <span
                 className="ramp--transcript_text"
                 data-testid="transcript_text"
-                dangerouslySetInnerHTML={{ __html: buildSpeakerText(t, highlightTranscriptItem(t)) }}
+                dangerouslySetInnerHTML={{ __html: buildSpeakerText(item, highlightTranscriptItem(match ? match : t)) }}
               />
             </div>
           );
-          timedText.push(line);
         });
       }
     } else {
@@ -390,7 +396,6 @@ const Transcript = ({ playerID, transcripts, showDownload: showSelect = true, sh
       );
     }
   }
-
   if (!isLoading) {
     return (
       <div
@@ -402,6 +407,15 @@ const Transcript = ({ playerID, transcripts, showDownload: showSelect = true, sh
       >
         {!isEmptyRef.current && (
           <div className="ramp--transcript_menu">
+            {showSearch && (
+              <TranscriptSearch
+                searchQuery={searchQuery}
+                setSearchQuery={setSearchQuery}
+                searchResults={searchResults}
+                focusedMatchIndex={focusedMatchIndex}
+                setFocusedLine={setFocusedLine}
+              />
+            )}
             {showSelect && (
               <TranscriptSelector
                 setTranscript={selectTranscript}
@@ -411,13 +425,10 @@ const Transcript = ({ playerID, transcripts, showDownload: showSelect = true, sh
                 noTranscript={timedText[0]?.key}
               />
             )}
-            {showSearch && (
-              <TranscriptSearch setSearchQuery={setSearchQuery} />
-            )}
           </div>
         )}
         <div
-          className={`transcript_content ${transcriptRef.current ? '' : 'static'}`}
+          className={`transcript_content${transcriptRef.current ? '' : ' static'}`}
           ref={transcriptContainerRef}
         >
           {transcriptRef.current && timedText}

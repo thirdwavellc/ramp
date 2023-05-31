@@ -1,0 +1,128 @@
+@import url("https://fonts.googleapis.com/css2?family=Source+Sans+Pro:ital,wght@0,400;0,600;0,700;0,900;1,400;1,600;1,700;1,900&display=swap");
+.thm-style {
+  background-color: #faf8f8;
+  margin: -16px -8px;
+  padding: 16px 16px 24px;
+}
+.thm-style .ramp--transcript_nav .ramp--transcript_menu {
+  background-color: #faf8f8;
+  border: 0;
+}
+.thm-style .ramp--transcript_nav .ramp--transcript_menu .ramp--transcript_search-clear {
+  height: 14px;
+  width: 14px;
+  appearance: none;
+  border: none;
+  top: 50%;
+  right: 8px;
+  position: absolute;
+  background-repeat: no-repeat;
+  background-size: 14px 14px;
+  background-position: center center;
+  font-size: 0;
+  transform: translate(-50%, -50%);
+  background-image: url("../../assets/icons/close.svg");
+}
+.thm-style .ramp--transcript_nav .ramp--transcript_menu .ramp--transcript_search-clear:hover {
+  width: 18px;
+  height: 18px;
+}
+.thm-style .ramp--transcript_nav .ramp--transcript_menu .ramp--transcript_search-clear:disabled {
+  background-image: url("../../assets/icons/search.svg");
+}
+.thm-style .ramp--transcript_nav .ramp--transcript_menu .ramp--transcript_search-input-container {
+  position: relative;
+}
+.thm-style .ramp--transcript_nav .ramp--transcript_menu input.ramp--transcript_search-input {
+  appearance: none;
+  color: #232323;
+  height: 47px;
+  font-family: "Source Sans Pro", sans-serif;
+  background-color: transparent;
+  width: calc(100% - 32px);
+  font-size: 16px;
+  font-weight: 600;
+  padding: 0 24px 0 8px;
+  letter-spacing: 0em;
+  text-align: left;
+  border: none;
+  border-bottom: 1px solid #000;
+}
+.thm-style .ramp--transcript_nav .ramp--transcript_menu input.ramp--transcript_search-input:focus {
+  outline: none;
+}
+.thm-style .ramp--transcript_nav .ramp--transcript_menu input.ramp--transcript_search-input::placeholder {
+  color: #808080;
+}
+.thm-style .ramp--transcript_nav .ramp--transcript_menu .ramp--transcript_search-navigator {
+  justify-content: space-between;
+  width: 290px;
+}
+.thm-style .ramp--transcript_nav .ramp--transcript_menu .ramp--transcript_search-count {
+  font-family: "Source Sans Pro", sans-serif;
+  font-size: 18px;
+  font-weight: 600;
+  line-height: 24px;
+  letter-spacing: 0px;
+  text-align: left;
+  color: #808080;
+}
+.thm-style .ramp--transcript_nav .ramp--transcript_menu button.ramp--transcript_search-prev, .thm-style .ramp--transcript_nav .ramp--transcript_menu button.ramp--transcript_search-next {
+  appearance: none;
+  padding: 0 10px;
+  height: 48px;
+  cursor: pointer;
+  font-family: "Source Sans Pro", sans-serif;
+  font-size: 18px;
+  font-weight: 600;
+  line-height: 24px;
+  letter-spacing: 0px;
+  text-align: left;
+  text-transform: uppercase;
+  background-color: transparent;
+  border: 2px solid transparent;
+  color: #f96704;
+  background-size: 7.5px 12px;
+}
+.thm-style .ramp--transcript_nav .ramp--transcript_menu button.ramp--transcript_search-prev:not(:disabled):hover, .thm-style .ramp--transcript_nav .ramp--transcript_menu button.ramp--transcript_search-prev:not(:disabled):focus, .thm-style .ramp--transcript_nav .ramp--transcript_menu button.ramp--transcript_search-next:not(:disabled):hover, .thm-style .ramp--transcript_nav .ramp--transcript_menu button.ramp--transcript_search-next:not(:disabled):focus {
+  border: 2px solid #f96704;
+}
+.thm-style .ramp--transcript_nav .ramp--transcript_menu button.ramp--transcript_search-prev:disabled, .thm-style .ramp--transcript_nav .ramp--transcript_menu button.ramp--transcript_search-next:disabled {
+  cursor: not-allowed;
+  color: #808080;
+}
+.thm-style .ramp--transcript_nav .ramp--transcript_menu button.ramp--transcript_search-prev {
+  background-image: url("../../assets/icons/left.svg");
+  background-repeat: no-repeat;
+  background-position: 8px center;
+  padding-left: 24px;
+}
+.thm-style .ramp--transcript_nav .ramp--transcript_menu button.ramp--transcript_search-prev:disabled {
+  background-image: url("../../assets/icons/left-disabled.svg");
+}
+.thm-style .ramp--transcript_nav .ramp--transcript_menu button.ramp--transcript_search-next {
+  background-image: url("../../assets/icons/right.svg");
+  background-repeat: no-repeat;
+  background-position: calc(100% - 8px) center;
+  padding-right: 24px;
+}
+.thm-style .ramp--transcript_nav .ramp--transcript_menu button.ramp--transcript_search-next:disabled {
+  background-image: url("../../assets/icons/right-disabled.svg");
+}
+.thm-style .ramp--transcript_nav .ramp--transcript_menu .ramp--transcript_downloader {
+  appearance: none;
+  color: #232323;
+  cursor: pointer;
+  border: 1px solid #232323;
+  background-color: #fff;
+  border-radius: 0;
+  width: 290px;
+  font-family: "Source Sans Pro";
+  font-style: normal;
+  font-weight: 600;
+  font-size: 18px;
+  line-height: 24px;
+  height: 46px;
+  padding: 0 24px;
+  text-transform: uppercase;
+}

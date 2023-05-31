@@ -1,9 +1,9 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import PropTypes from 'prop-types';
 import 'lodash';
 import TranscriptSelector from './TranscriptMenu/TranscriptSelector';
 import TranscriptSearch from './TranscriptMenu/TranscriptSearch';
-import { createTimestamp } from '@Services/utility-helpers';
+import { createTimestamp, getMediaFragment } from '@Services/utility-helpers';
 import { checkManifestAnnotations, parseTranscriptData } from '@Services/transcript-parser';
 import './Transcript.scss';
 import { useFilteredTranscripts } from '../..//context/search';
@@ -32,14 +32,41 @@ const highlightTranscriptItem = (t) => (typeof t === 'string'
   )
 );
 
-export const Transcript = ({ playerID, transcripts, showDownload: showSelect = true, showSearch = true }) => {
+/**
+ * @param {string} selector - dom selector to poll for 
+ * @param {number} [interval] - how often to check the dom
+ * @param {number} [timeout] - time after we give up
+ * @returns {HTMLElement} - the dom element we've all been waiting for
+ */
+const waitForSelector = (selector, interval = 333, timeout = 15000) => {
+  let el = document.querySelector(selector);
+  if (el) return Promise.resolve(el);
+  return new Promise((resolve, reject) => {
+    const startTime = Date.now();
+    const timer = setInterval(() => {
+      el = document.querySelector(selector);
+      if (el) {
+        clearInterval(timer);
+        resolve(el);
+      } else if (Date.now() - startTime > timeout) {
+        clearInterval(timer);
+        reject(new Error(`Timeout waiting for ${selector}`));
+      }
+    }, interval);
+  });
+}
+
+export const Transcript = ({ playerID, transcripts, showDownload: showSelect = true, showSearch = true, followVideo = true }) => {
   const [canvasTranscripts, setCanvasTranscripts] = React.useState([]);
   /** @type {[TranscriptItem[], React.Dispatch<React.SetStateAction<TranscriptItem[]>>]} */
   const [transcript, _setTranscript] = React.useState([]);
   /** @type {[TranscriptSearchResults, React.Dispatch<React.SetStateAction<TranscriptSearchResults>>]} */
   const [searchResults, setSearchResults] = React.useState(/** @type {TranscriptSearchResults} */ { results: {}, ids: [], idsScored: [] });
+  const followingVideo = useRef(followVideo);
   const searchResultsRef = useRef(searchResults);
   searchResultsRef.current = searchResults;
+
+
   const [transcriptTitle, setTranscriptTitle] = React.useState('');
   const [transcriptUrl, setTranscriptUrl] = React.useState('');
   const [canvasIndex, _setCanvasIndex] = React.useState(0);
@@ -47,19 +74,13 @@ export const Transcript = ({ playerID, transcripts, showDownload: showSelect = t
   const [searchQuery, setSearchQuery] = React.useState(null);
   const [errorMsg, setError] = React.useState('');
 
-  let isMouseOver = false;
-  // Setup refs to access state information within
-  // event handler function
-  const isMouseOverRef = useRef(isMouseOver);
-  const setIsMouseOver = (state) => {
-    isMouseOverRef.current = state;
-    isMouseOver = state;
-  };
-
   const isEmptyRef = useRef(false);
   const setIsEmpty = (e) => {
     isEmptyRef.current = e;
   };
+
+  /** @type {[{ start: number; end: number; } | null, (value: { start: number; end: number; } | null) => void]} */
+  const [playbackRange, setPlaybackRange] = useState(null);
 
   const canvasIndexRef = useRef();
   const setCanvasIndex = (c) => {
@@ -121,9 +142,9 @@ export const Transcript = ({ playerID, transcripts, showDownload: showSelect = t
 
   let timedText = [];
 
-  /** @type {[null|number, React.Dispatch<null|number>]} */
+  /** @type {[number|null, React.Dispatch<number\null>]} */
   const [focusedLine, setFocusedLine] = useState(null);
-  /** @type {[null|number, React.Dispatch<null|number>]} */
+  /** @type {[number|null, React.Dispatch<number|null>]} */
   const [focusedMatchIndex, setFocusedMatchIndex] = useState(null);
 
   /** @type {{current: number | null}} */
@@ -178,6 +199,9 @@ export const Transcript = ({ playerID, transcripts, showDownload: showSelect = t
     }
   }, [searchResults, focusedLine, transcript, focusedMatchIndex]);
 
+
+  const withinRange = t => playbackRange && t.begin >= playbackRange.start && t.end <= playbackRange.end;
+
   /** @type {[null|HTMLVideoElement, React.Dispatch<null|HTMLVideoElement>]} */
   const [player, setPlayer] = useState(null);
   const navigateToLine = (id) => {
@@ -191,29 +215,23 @@ export const Transcript = ({ playerID, transcripts, showDownload: showSelect = t
   /** @type {React.MutableRefObject<((this: HTMLVideoElement, ev: Event & { target: HTMLVideoElement }) => any)>} */
   const onPlaybackRef = useRef();
   onPlaybackRef.current = e => {
-    if (e == null || e.target == null || !areTranscriptsTimed) {
-      return;
-    }
+    if (e == null || e.target == null || !areTranscriptsTimed || !followingVideo.current) return;
     const currentTime = e.target.currentTime;
+
     for (const transcriptLine of /** @type {TimedTranscriptItem[]} */ (transcript)) {
       if (currentTime >= transcriptLine.begin && currentTime <= transcriptLine.end) {
+        console.log(transcriptLine.id, withinRange(transcriptLine.begin), playbackRange, transcriptLine);
         setFocusedLine(transcriptLine.id);
       }
     }
   };
 
   useEffect(() => {
-    setTimeout(() => {
-      const domPlayer = document.getElementById(playerID);
-      /** @type {HTMLVideoElement|null} */
-      let playerEl = null;
-      if (!domPlayer) {
-        console.error(`Cannot find player, ${playerID} on page.Transcript synchronization is disabled.`);
-      } else {
-        playerEl = /** @type {HTMLVideoElement} */ (domPlayer.children[0]);
+    (waitForSelector(`#${playerID}`, 333, 15000)
+      .then(domPlayer => {
+        let playerEl = /** @type {HTMLVideoElement} */ (domPlayer.children[0]);
         setPlayer(playerEl);
-      }
-      if (playerEl) {
+
         playerEl.dataset['canvasindex']
           ? setCanvasIndex(playerEl.dataset['canvasindex'])
           : setCanvasIndex(0);
@@ -223,25 +241,21 @@ export const Transcript = ({ playerID, transcripts, showDownload: showSelect = t
           // render next canvas related transcripts
           setCanvasIndex(canvasIndex + 1);
         });
-      }
-    });
+        console.log(`duration: ${playerEl.duration}`)
+
+        // let range = getMediaFragment(playerEl.src, playerEl.duration);
+        // if (!range) range = { start: 0, end: playerEl.duration };
+        // setPlaybackRange(range);
+
+
+      }).catch(err => {
+        console.error(`Cannot find player, ${playerID} on page.Transcript synchronization is disabled.`);
+      })
+    );
   }, []);
 
-  useEffect(() => {
-    // Clean up state on component unmount
-    return () => {
-      setCanvasTranscripts([]);
-      setTranscript([]);
-      setTranscriptTitle('');
-      setTranscriptUrl('');
-      setCanvasIndex();
-      setPlayer(null);
-      isMouseOver = false;
-      timedText = [];
-    };
-  }, []);
 
-  const fetchManifestData = React.useCallback(async (t) => {
+  const fetchManifestData = React.useCallback(async t => {
     const data = await checkManifestAnnotations(t);
     setCanvasTranscripts(data);
     setStateVar(data[0]);
@@ -331,15 +345,6 @@ export const Transcript = ({ playerID, transcripts, showDownload: showSelect = t
     });
   };
 
-  /**
-   * Update state based on mouse events - hover or not hover
-   * @param {Boolean} state flag identifying mouse event
-   */
-  const handleMouseOver = (state) => {
-    setIsMouseOver(state);
-  };
-
-
   if (transcriptRef.current) {
     if (transcripts && transcripts.length > 0) {
       if (typeof transcript[0] == 'string') {
@@ -402,8 +407,8 @@ export const Transcript = ({ playerID, transcripts, showDownload: showSelect = t
         className="ramp--transcript_nav"
         data-testid="transcript_nav"
         key={transcriptTitle}
-        onMouseOver={() => handleMouseOver(true)}
-        onMouseLeave={() => handleMouseOver(false)}
+        onMouseOver={() => (followingVideo.current = false)}
+        onMouseLeave={() => followVideo && (followingVideo.current = true)}
       >
         {!isEmptyRef.current && (
           <div className="ramp--transcript_menu">

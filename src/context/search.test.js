@@ -1,5 +1,53 @@
 import fuzzysort from 'fuzzysort';
-import { findTokenIndex, refineMatch, mergeTokens, indicesToTokens, tokenize, getIndices, tokenizeSearchTerms, linkTermsToTokens, validateMatch } from './search';
+import { findTokenIndex, refineMatch, mergeTokens, indicesToTokens, tokenize, getIndices, tokenizeSearchTerms, linkTermsToTokens, validateMatch, highlight } from './search';
+
+describe('highlighting', () => {
+    const fixtures = [
+        'When she got back to the Cheshire Cat, she was surprised to find quite a large crowd collected round it',
+        'I didn\'t know that Cheshire cats always grinned; in fact, I didn\'t know that cats could grin.',
+        'her eyes immediately met those of a large blue caterpillar, that was sitting on the top with its arms folded, quietly smoking a long hookah'
+    ];
+    test('highlight a single term at beginning of text', () => {
+        const match = fuzzysort.single('When', fixtures[0]);
+        const refined = refineMatch(match, 'When');
+        expect(refined.indices).toEqual([0, 1, 2, 3]);
+        const chunked = highlight(refined);
+        expect(chunked).toEqual([
+            '',
+            'When',
+            ' she got back to the Cheshire Cat, she was surprised to find quite a large crowd collected round it'
+        ]);
+    });
+    test('highlight a single term in center of text', () => {
+        const match = fuzzysort.single('Cheshire', fixtures[0]);
+        const refined = refineMatch(match, 'Cheshire');
+        expect(refined.indices).toEqual([25, 26, 27, 28, 29, 30, 31, 32]);
+        const chunked = highlight(refined);
+        expect(chunked).toEqual([
+            'When she got back to the ',
+            'Cheshire',
+            ' Cat, she was surprised to find quite a large crowd collected round it'
+        ]);
+    });
+    test('highlight a single term split by whitespace', () => {
+        const match = fuzzysort.single('armsfolded', fixtures[2]);
+        const refined = refineMatch(match, 'armsfolded');
+        expect(refined.indices).toEqual([97, 98, 99, 100, 102, 103, 104, 105, 106, 107]);
+        const chunked = highlight(refined);
+        expect(chunked).toEqual([
+            'her eyes immediately met those of a large blue caterpillar, that was sitting on the top with its ',
+            'arms',
+            ' ',
+            'folded',
+            ', quietly smoking a long hookah'
+        ]);
+    });
+    test('highlight two terms', () => {
+        const match = fuzzysort.single('cat large', fixtures[0]);
+        const refined = refineMatch(match, 'cat large');
+        expect(refined.indices).toEqual([34, 35, 36, 73, 74, 75, 76, 77]);
+    });
+});
 
 describe('refinement', () => {
     const fixture = 'However, this bottle was not marked “poison,” so Alice ventured to taste it';
@@ -11,61 +59,85 @@ describe('refinement', () => {
     test('get offset for the most truncated match', () => {
         const query = 'tlewas';
         const match = fuzzysort.single(query, fixture);
-        const refined = refineMatch(match, query);
-        expect(getIndices(match)).toEqual([18, 19, 21, 22, 23]);
+        const { indices } = refineMatch(match, query);
+        expect(indices).toEqual([17, 18, 19, 21, 22, 23]);
     });
-})
+    test('score from the refined match is returned', () => {
+        const query = 'tlewas';
+        const match = fuzzysort.single(query, fixture);
+        const { score } = refineMatch(match, query);
+        expect(score).toBeGreaterThan(match.score);
+    });
+});
 
 describe('validation', () => {
     const fixtures = [
         'Her first idea was that she had somehow fallen into the sea, "and in that case I can go back by railway"',
         'The Mouse looked at her rather inquisitively, and seemed to her to wink with one of its little eyes',
         'Just then her head struck against the roof of the hall: in fact she was now more than nine feet high',
-        'However, this bottle was not marked “poison,” so Alice ventured to taste it'
+        'However, this bottle was not marked “poison,” so Alice ventured to taste it',
+        'The King and Queen of Hearts were seated on their throne when they arrived, with a great crowd assembled about them'
     ];
 
-    test('a single term split across two complete tokens with whitespace in between will match', () => {
-        const query = 'winkwith';
-        const match = fuzzysort.single(query, fixtures[1]);
-        expect(getIndices(match)).toEqual([67, 68, 69, 70, 72, 73, 74, 75]);
-        expect(validateMatch(match, query)).toEqual(true);
-    });
-    test('a single term split across two tokens with only head of second token included will match', () => {
-        const query = 'struckagain';
-        const match = fuzzysort.single(query, fixtures[2]);
-        expect(getIndices(match)).toEqual([19, 20, 21, 22, 23, 24, 26, 27, 28, 29, 30]);
-        expect(validateMatch(match, query)).toEqual(true);
-    });
-    // test('a single term split across two tokens with only tail of first token included will match', () => {
-    //     const query = 'tlewas';
-    //     const match = fuzzysort.single(query, fixtures[3]);
-    //     expect(getIndices(match)).toEqual([19, 20, 21, 22, 23, 24, 26, 27, 28, 29, 30]);
-    //     expect(validateMatch(match, query)).toEqual(true);
-    // });
+    describe('a single term spit across two tokens', () => {
+        test('will match when both tokens are complete', () => {
+            const query = 'winkwith';
+            const match = fuzzysort.single(query, fixtures[1]);
+            expect(getIndices(match)).toEqual([67, 68, 69, 70, 72, 73, 74, 75]);
+            expect(validateMatch(match, query)).toEqual(true);
+        });
 
-    test('less than great matches can be refined', () => {
-
+        test('will match when tail of first token is included', () => {
+            const query = 'tlewas';
+            const match = fuzzysort.single(query, fixtures[3]);
+            const refined = refineMatch(match, query);
+            expect(getIndices(refined)).toEqual([17, 18, 19, 21, 22, 23]);
+            expect(validateMatch(refined, query)).toEqual(true);
+        });
+        test('will NOT match when tail of first token is not included', () => {
+            const query = 'tlwas';
+            const match = fuzzysort.single(query, fixtures[3]);
+            const refined = refineMatch(match, query);
+            expect(getIndices(refined)).toEqual([17, 18, 21, 22, 23]);
+            expect(validateMatch(refined, query)).toEqual(false);
+        });
+        test('will match when head of second token is included', () => {
+            const query = 'struckagain';
+            const match = fuzzysort.single(query, fixtures[2]);
+            expect(getIndices(match)).toEqual([19, 20, 21, 22, 23, 24, 26, 27, 28, 29, 30]);
+            expect(validateMatch(match, query)).toEqual(true);
+        });
+        test('will NOT match if head of second token is not included', () => {
+            const query = 'crowdbled';
+            const match = fuzzysort.single(query, fixtures[4]);
+            expect(getIndices(match)).toEqual([89, 90, 91, 92, 93, 100, 101, 102, 103]);
+            expect(validateMatch(match, query)).toEqual(false);
+        });
     });
-    test('two whole terms separated by whitespace will match', () => {
+
+    test('two whole complete separated by whitespace will match', () => {
         const query = 'somehow fallen';
         const match = fuzzysort.single(query, fixtures[0]);
         expect(getIndices(match)).toEqual([32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45]);
         expect(validateMatch(match, query)).toEqual(true);
     });
-    test('a single term match at the beginning of a single token', () => {
-        const match = fuzzysort.single('rail', fixtures[0]);
-        expect(getIndices(match)).toEqual([96, 97, 98, 99]);
-        expect(validateMatch(match, 'rail')).toEqual(true);
-    });
-    test('a single term match at the middle of a single token', () => {
-        const match = fuzzysort.single('quisit', fixtures[1]);
-        expect(getIndices(match)).toEqual([33, 34, 35, 36, 37, 38]);
-        expect(validateMatch(match, 'quisit')).toEqual(true);
-    });
-    test('a single term match at the end of a single token', () => {
-        const match = fuzzysort.single('ruck', fixtures[2]);
-        expect(getIndices(match)).toEqual([21, 22, 23, 24]);
-        expect(validateMatch(match, 'ruck')).toEqual(true);
+
+    describe('a single term', () => {
+        test('will match at head of token', () => {
+            const match = fuzzysort.single('rail', fixtures[0]);
+            expect(getIndices(match)).toEqual([96, 97, 98, 99]);
+            expect(validateMatch(match, 'rail')).toEqual(true);
+        });
+        test('will match in center of token', () => {
+            const match = fuzzysort.single('quisit', fixtures[1]);
+            expect(getIndices(match)).toEqual([33, 34, 35, 36, 37, 38]);
+            expect(validateMatch(match, 'quisit')).toEqual(true);
+        });
+        test('will match at tail of token', () => {
+            const match = fuzzysort.single('ruck', fixtures[2]);
+            expect(getIndices(match)).toEqual([21, 22, 23, 24]);
+            expect(validateMatch(match, 'ruck')).toEqual(true);
+        });
     });
 });
 

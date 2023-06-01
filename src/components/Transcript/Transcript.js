@@ -3,7 +3,7 @@ import PropTypes from 'prop-types';
 import 'lodash';
 import TranscriptSelector from './TranscriptMenu/TranscriptSelector';
 import TranscriptSearch from './TranscriptMenu/TranscriptSearch';
-import { createTimestamp, getMediaFragment } from '@Services/utility-helpers';
+import { createTimestamp } from '@Services/utility-helpers';
 import { checkManifestAnnotations, parseTranscriptData } from '@Services/transcript-parser';
 import './Transcript.scss';
 import { useFilteredTranscripts } from '../..//context/search';
@@ -36,7 +36,7 @@ const highlightTranscriptItem = (t) => (typeof t === 'string'
  * @param {string} selector - dom selector to poll for 
  * @param {number} [interval] - how often to check the dom
  * @param {number} [timeout] - time after we give up
- * @returns {HTMLElement} - the dom element we've all been waiting for
+ * @returns {Promise<Element>} - the dom element we've all been waiting for
  */
 const waitForSelector = (selector, interval = 333, timeout = 15000) => {
   let el = document.querySelector(selector);
@@ -142,7 +142,7 @@ export const Transcript = ({ playerID, transcripts, showDownload: showSelect = t
 
   let timedText = [];
 
-  /** @type {[number|null, React.Dispatch<number\null>]} */
+  /** @type {[number|null, React.Dispatch<number|null>]} */
   const [focusedLine, setFocusedLine] = useState(null);
   /** @type {[number|null, React.Dispatch<number|null>]} */
   const [focusedMatchIndex, setFocusedMatchIndex] = useState(null);
@@ -220,7 +220,7 @@ export const Transcript = ({ playerID, transcripts, showDownload: showSelect = t
 
     for (const transcriptLine of /** @type {TimedTranscriptItem[]} */ (transcript)) {
       if (currentTime >= transcriptLine.begin && currentTime <= transcriptLine.end) {
-        console.log(transcriptLine.id, withinRange(transcriptLine.begin), playbackRange, transcriptLine);
+        // console.log(transcriptLine.id, withinRange(transcriptLine.begin), playbackRange, transcriptLine);
         setFocusedLine(transcriptLine.id);
       }
     }

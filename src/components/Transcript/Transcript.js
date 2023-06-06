@@ -7,7 +7,7 @@ import { createTimestamp, getMediaFragment } from '@Services/utility-helpers';
 import { checkManifestAnnotations, parseTranscriptData } from '@Services/transcript-parser';
 import './Transcript.scss';
 import { useFilteredTranscripts } from '../../context/search';
-import { PlayerStateContext, usePlayerState } from '../../context/player-context';
+import { PlayerDispatchContext, PlayerStateContext, usePlayerDispatch, usePlayerState } from '../../context/player-context';
 
 
 /** @typedef {import('../../context/search').TranscriptSearchResults} TranscriptSearchResults */
@@ -127,9 +127,37 @@ export const Transcript = ({ playerID, transcripts, showDownload: showSelect = t
     transcripts: transcript
   });
 
+  const playerCtx = useContext(PlayerStateContext);
+  const playerDispatch = useContext(PlayerDispatchContext);
+
+  useEffect(() => {
+    if (!playerCtx?.player) return;
+    if (!areTranscriptsTimed) return;
+    let nextMarkers = [];
+
+    if (searchResults.ids.length < 25 || (searchQuery !== null && searchQuery.length >= 3)) {
+      // ^^ don't show a billion markers if we're searching for a short string ^^
+      nextMarkers = searchResults.ids.map(id => {
+        const result = searchResults.results[id];
+        const resultItem = /** @type {TimedTranscriptItem} */(result.item);
+
+        if (resultItem.begin < playbackRange.start || resultItem.begin > playbackRange.end) return null;
+        // ^^ no markers for items outside the playback range ^^
+
+        return {
+          time: resultItem.begin,
+          text: resultItem.text,
+          class: 'ramp--transcript_search-marker'
+        };
+      });
+    }
+
+    playerDispatch({ type: 'setSearchMarkers', payload: nextMarkers.filter(m => m !== null) })
+  }, [searchResults, areTranscriptsTimed, playerCtx?.player]);
+
   /**
-   * @param {HTMLDivElement} textRef  - dom node to center on
-   */
+     * @param {HTMLDivElement} textRef  - dom node to center on
+     */
   const scrollToRef = (textRef) => {
     if (!textRef) return;
     if (!transcriptContainerRef.current) return;
@@ -210,10 +238,7 @@ export const Transcript = ({ playerID, transcripts, showDownload: showSelect = t
     }
     lastFocusedLine.current = focusedLine;
     if (refToFocus) {
-      console.log('refToFocus', refToFocus);
       setTimeout(() => scrollToRef(refToFocus), 200);
-    } else {
-      console.log('noRefToFocus');
     }
   }, [searchResults, focusedLine, transcript, focusedMatchIndex]);
 
@@ -239,7 +264,6 @@ export const Transcript = ({ playerID, transcripts, showDownload: showSelect = t
     for (const transcriptLine of /** @type {TimedTranscriptItem[]} */ (transcript)) {
       if (currentTime >= transcriptLine.begin && currentTime <= transcriptLine.end) {
         if (transcriptLine.id !== focusedLine) {
-          console.log(`moving from line ${focusedLine} ==> ${transcriptLine.id}`);
           setFocusedLine(transcriptLine.id);
         }
       }

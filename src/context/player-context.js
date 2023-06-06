@@ -15,6 +15,7 @@ const defaultState = {
   endTime: null,
   isEnded: false,
   currentTime: null,
+  searchMarkers: [],
   playerRange: { start: null, end: null },
 };
 
@@ -39,6 +40,9 @@ function PlayerReducer(state = defaultState, action) {
         startTime: action.startTime,
         endTime: action.endTime,
       };
+    }
+    case 'setSearchMarkers': {
+      return { ...state, searchMarkers: action.payload };
     }
     case 'setPlayingStatus': {
       return { ...state, isPlaying: action.isPlaying };

@@ -60,6 +60,7 @@ function VideoJSPlayer({
     startTime,
     currentTime,
     playerRange,
+    searchMarkers
   } = playerState;
 
   const [cIndex, setCIndex] = React.useState(canvasIndex);
@@ -224,6 +225,8 @@ function VideoJSPlayer({
     setCanvasSegments(getSegmentMap({ manifest }));
   }, [canvasIndex]);
 
+  const lastSearchMarkers = React.useRef(searchMarkers);
+
   /**
    * Update markers whenever player's currentTime is being
    * updated. Time update happens when;
@@ -246,25 +249,35 @@ function VideoJSPlayer({
           startTime: start,
           type: 'setTimeFragment',
         });
+        const navMarker = {
+          time: start,
+          duration: end - start,
+          text: getLabelValue(currentNavItem.label),
+        };
+        lastSearchMarkers.current = searchMarkers;
         player.markers.add([
-          {
-            time: start,
-            duration: end - start,
-            text: getLabelValue(currentNavItem.label),
-          },
+          navMarker,
+          ...searchMarkers
         ]);
       }
-    } else if (startTime === null) {
-      // When canvas gets loaded into the player, set the currentNavItem and startTime
-      // if there's a media fragment starting from time 0.0.
-      // This then triggers the creation of a fragment highlight in the player's timerail
-      const firstItem = canvasSegments[0];
-      const timeFragment = getMediaFragment(getItemId(firstItem), canvasDuration);
-      if (timeFragment && timeFragment.start === 0) {
-        manifestDispatch({ item: firstItem, type: 'switchItem' });
+    } else {
+      if (searchMarkers !== lastSearchMarkers.current) {
+        player.markers.removeAll();
+        player.markers.add(searchMarkers);
+        lastSearchMarkers.current = searchMarkers;
+      }
+      if (startTime === null) {
+        // When canvas gets loaded into the player, set the currentNavItem and startTime
+        // if there's a media fragment starting from time 0.0.
+        // This then triggers the creation of a fragment highlight in the player's timerail
+        const firstItem = canvasSegments[0];
+        const timeFragment = getMediaFragment(getItemId(firstItem), canvasDuration);
+        if (timeFragment && timeFragment.start === 0) {
+          manifestDispatch({ item: firstItem, type: 'switchItem' });
+        }
       }
     }
-  }, [currentNavItem, isReady]);
+  }, [currentNavItem, isReady, searchMarkers]);
 
   /**
    * Setting the current time of the player when using structure navigation

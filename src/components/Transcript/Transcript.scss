@@ -95,6 +95,15 @@
   }
 }
 
+.ramp--transcript_search-marker {
+  transform: translateX(-75%) !important;
+  pointer-events: all;
+  z-index: 9999;
+  &:hover {
+    background-color: #f00 !important;
+  }
+}
+
 div.ramp--transcript_item {
   display: flex;
   padding: 10px;

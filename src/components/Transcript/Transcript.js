@@ -1,12 +1,14 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useContext, useEffect, useMemo, useRef, useState } from 'react';
 import PropTypes from 'prop-types';
 import 'lodash';
 import TranscriptSelector from './TranscriptMenu/TranscriptSelector';
 import TranscriptSearch from './TranscriptMenu/TranscriptSearch';
-import { createTimestamp } from '@Services/utility-helpers';
+import { createTimestamp, getMediaFragment } from '@Services/utility-helpers';
 import { checkManifestAnnotations, parseTranscriptData } from '@Services/transcript-parser';
 import './Transcript.scss';
-import { useFilteredTranscripts } from '../..//context/search';
+import { useFilteredTranscripts } from '../../context/search';
+import { PlayerStateContext, usePlayerState } from '../../context/player-context';
+
 
 /** @typedef {import('../../context/search').TranscriptSearchResults} TranscriptSearchResults */
 /** @typedef {import('../..//context/search').TranscriptItem} TranscriptItem */
@@ -65,7 +67,6 @@ export const Transcript = ({ playerID, transcripts, showDownload: showSelect = t
   const followingVideo = useRef(followVideo);
   const searchResultsRef = useRef(searchResults);
   searchResultsRef.current = searchResults;
-
 
   const [transcriptTitle, setTranscriptTitle] = React.useState('');
   const [transcriptUrl, setTranscriptUrl] = React.useState('');
@@ -149,7 +150,12 @@ export const Transcript = ({ playerID, transcripts, showDownload: showSelect = t
 
   /** @type {{current: number | null}} */
   let lastFocusedLine = useRef(focusedLine);
+  let lastResultsRef = useRef(searchResults);
   useEffect(() => {
+    const searchResultsUpdated = lastResultsRef.current !== searchResults;
+    if (searchResultsUpdated) {
+      lastResultsRef.current = searchResults;
+    }
     /** @type {HTMLDivElement|null} */
     let refToFocus = null;
     if (focusedLine === null) {
@@ -165,11 +171,14 @@ export const Transcript = ({ playerID, transcripts, showDownload: showSelect = t
         if (searchQuery !== null && searchQuery.replace(/\s/g, '') !== '') {
           setFocusedMatchIndex(-1);
           setFocusedLine(0);
+          refToFocus = textRefs.current[0];
         } else {
           setFocusedMatchIndex(-1);
+          refToFocus = textRefs.current[focusedLine];
         }
       } else if (matchIndex !== -1) { // currently focused line is in the new result set, maintain focus on it
         if (focusedLine !== lastFocusedLine.current) {
+          // scroll to this next line
           refToFocus = textRefs.current[focusedLine];
         }
         setFocusedMatchIndex(matchIndex);
@@ -181,12 +190,18 @@ export const Transcript = ({ playerID, transcripts, showDownload: showSelect = t
         setFocusedMatchIndex(searchResults.ids.length - 1);
         refToFocus = textRefs.current[searchResults.ids[searchResults.ids.length - 1]];
       } else if (searchResults.ids.length > 0) {
+        // we have search results
+        if (focusedLine !== lastFocusedLine.current) {
+          refToFocus = textRefs.current[focusedLine];
+        }
         if (focusedMatchIndex === -1) {
           setFocusedMatchIndex(0);
           const nextID = searchResults.ids[0];
           setFocusedLine(nextID);
           refToFocus = textRefs.current[nextID];
-        } else if (typeof focusedMatchIndex === 'number') {
+        } else if (typeof focusedMatchIndex === 'number' && searchResultsUpdated) {
+          // ^ here we only change the focused line if the search results have changed this is
+          // so the focused line can be automatically advanced during playback without causing flickering
           const nextID = searchResults.ids[focusedMatchIndex];
           setFocusedLine(nextID);
           refToFocus = textRefs.current[nextID];
@@ -195,7 +210,10 @@ export const Transcript = ({ playerID, transcripts, showDownload: showSelect = t
     }
     lastFocusedLine.current = focusedLine;
     if (refToFocus) {
+      console.log('refToFocus', refToFocus);
       setTimeout(() => scrollToRef(refToFocus), 200);
+    } else {
+      console.log('noRefToFocus');
     }
   }, [searchResults, focusedLine, transcript, focusedMatchIndex]);
 
@@ -220,38 +238,50 @@ export const Transcript = ({ playerID, transcripts, showDownload: showSelect = t
 
     for (const transcriptLine of /** @type {TimedTranscriptItem[]} */ (transcript)) {
       if (currentTime >= transcriptLine.begin && currentTime <= transcriptLine.end) {
-        // console.log(transcriptLine.id, withinRange(transcriptLine.begin), playbackRange, transcriptLine);
-        setFocusedLine(transcriptLine.id);
+        if (transcriptLine.id !== focusedLine) {
+          console.log(`moving from line ${focusedLine} ==> ${transcriptLine.id}`);
+          setFocusedLine(transcriptLine.id);
+        }
       }
     }
   };
 
   useEffect(() => {
+    let onTimeUpdate = null, onEnded = null, playerEl = null;
+
     (waitForSelector(`#${playerID}`, 333, 15000)
       .then(domPlayer => {
-        let playerEl = /** @type {HTMLVideoElement} */ (domPlayer.children[0]);
+        playerEl = /** @type {HTMLVideoElement} */ (domPlayer.children[0]);
         setPlayer(playerEl);
 
         playerEl.dataset['canvasindex']
           ? setCanvasIndex(playerEl.dataset['canvasindex'])
           : setCanvasIndex(0);
-        playerEl.addEventListener('timeupdate', function (e) { return onPlaybackRef.current.call(this, e); });
+        onTimeUpdate = function (...args) { return onPlaybackRef.current.call(this, ...args); }
+        playerEl.addEventListener('timeupdate', onTimeUpdate);
 
-        playerEl.addEventListener('ended', e => {
+        onEnded = e => {
           // render next canvas related transcripts
           setCanvasIndex(canvasIndex + 1);
-        });
-        console.log(`duration: ${playerEl.duration}`)
+        };
+        playerEl.addEventListener('ended', onEnded);
 
-        // let range = getMediaFragment(playerEl.src, playerEl.duration);
-        // if (!range) range = { start: 0, end: playerEl.duration };
-        // setPlaybackRange(range);
+        let range = getMediaFragment(playerEl.src, playerEl.duration);
+        if (!range) range = { start: 0, end: playerEl.duration };
+        setPlaybackRange(range);
 
 
       }).catch(err => {
         console.error(`Cannot find player, ${playerID} on page.Transcript synchronization is disabled.`);
       })
     );
+    return () => {
+      console.log('unloading player');
+      if (playerEl) {
+        if (onTimeUpdate) playerEl.removeEventListener('timeupdate', onTimeUpdate);
+        if (onEnded) playerEl.removeEventListener('ended', onEnded);
+      }
+    };
   }, []);
 
 

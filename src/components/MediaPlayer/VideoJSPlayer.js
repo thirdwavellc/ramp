@@ -241,7 +241,6 @@ function VideoJSPlayer({
     if (currentNavItem !== null && isReady) {
       // Mark current time fragment
       if (player.markers) {
-        player.markers.removeAll();
         // Use currentNavItem's start and end time for marker creation
         const { start, end } = getMediaFragment(getItemId(currentNavItem), canvasDuration);
         playerDispatch({
@@ -255,15 +254,14 @@ function VideoJSPlayer({
           text: getLabelValue(currentNavItem.label),
         };
         lastSearchMarkers.current = searchMarkers;
-        player.markers.add([
+        player.markers.reset([
           navMarker,
           ...searchMarkers
         ]);
       }
     } else {
       if (searchMarkers !== lastSearchMarkers.current) {
-        player.markers.removeAll();
-        player.markers.add(searchMarkers);
+        player.markers.reset(searchMarkers);
         lastSearchMarkers.current = searchMarkers;
       }
       if (startTime === null) {
@@ -292,13 +290,14 @@ function VideoJSPlayer({
    * Remove existing timerail highlight if the player's currentTime
    * doesn't fall within a defined structure item
    */
-  React.useEffect(() => {
-    if (!player || !currentPlayer) {
-      return;
-    } else if (isContained == false && player.markers) {
-      player.markers.removeAll();
-    }
-  }, [isContained]);
+  // React.useEffect(() => {
+  //   if (!player || !currentPlayer) {
+  //     return;
+  //   } else if (isContained == false && player.markers) {
+  //     console.log('out of "timerail?" ', isContained, player.markers)
+  //     player.markers.removeAll();
+  //   }
+  // }, [isContained]);
 
   /**
    * Handle the 'ended' event fired by the player when a section comes to
@@ -374,6 +373,7 @@ function VideoJSPlayer({
    */
   const cleanUpNav = () => {
     if (currentNavItemRef.current) {
+      console.log('switching to null');
       manifestDispatch({ item: null, type: 'switchItem' });
     }
     setActiveId(null);

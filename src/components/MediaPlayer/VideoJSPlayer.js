@@ -254,6 +254,7 @@ function VideoJSPlayer({
           text: getLabelValue(currentNavItem.label),
         };
         lastSearchMarkers.current = searchMarkers;
+        console.log(player.markers);
         player.markers.reset([
           navMarker,
           ...searchMarkers

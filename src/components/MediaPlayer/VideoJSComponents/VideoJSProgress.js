@@ -5,18 +5,33 @@ import videojs from 'video.js';
 import './VideoJSProgress.scss';
 
 const vjsComponent = videojs.getComponent('Component');
-
 /**
- * Custom component to show progress bar in the player, modified
- * to display multiple items in a single canvas
- * @param {Object} props
- * @param {Number} props.duration canvas duration
- * @param {Array} props.targets set of start and end times for
- * items in the current canvas
- * @param {Function} nextItemClicked callback func to trigger state
- * changes in the parent component
+ * @typedef VideoJSPlayer
+ * @type {import('video.js').VideoJsPlayer}
  */
-class VideoJSProgress extends vjsComponent {
+/**
+ * @typedef VideoJsPlayerOptions
+ * @type {import('video.js').VideoJsPlayerOptions}
+ */
+/**
+ * @typedef PlaybackRange
+ * @type {Object}
+ * @property {number} start - start time of the range
+ * @property {number} end - end time of the range
+ * @property {number} altStart - not sure
+ */
+/**
+ * @typedef VideoJSProgressOptions
+ * @type {Object}
+ * @param {VideoJsPlayerOptions} playerOptions - global player options
+ * @param {Number} duration - canvas duration
+ * @param {PlaybackRange[]} targets - set of start and end times for items in the current canvas
+ * @param {Function} nextItemClicked - callback func to trigger state changes in the parent component
+ */
+/**
+ * VideoJS wrapper around progress bar react component
+ */
+export class VideoJSProgress extends vjsComponent {
   constructor(player, options) {
     super(player, options);
     this.addClass('vjs-custom-progress-bar');
@@ -67,34 +82,34 @@ class VideoJSProgress extends vjsComponent {
 
   /** Build progress bar elements from the options */
   initProgressBar() {
-    const { duration, targets } = this.options;
-    const { startTime, endTime } = this.state;
+    // const { duration, targets } = this.options;
+    // const { startTime, endTime } = this.state;
 
-    const leftBlock = (startTime * 100) / duration;
-    const rightBlock = ((duration - endTime) * 100) / duration;
+    // const leftBlock = (startTime * 100) / duration;
+    // const rightBlock = ((duration - endTime) * 100) / duration;
 
-    const toPlay = 100 - leftBlock - rightBlock;
+    // const toPlay = 100 - leftBlock - rightBlock;
 
-    const leftDiv = document.getElementById('left-block');
-    const rightDiv = document.getElementById('right-block');
-    const dummySliders = document.getElementsByClassName(
-      'vjs-custom-progress-inactive'
-    );
+    // const leftDiv = this.el().querySelector('.left-block');
+    // const rightDiv = this.el().querySelector('.right-block');
+    // const dummySliders = this.el().querySelectorAll(
+    //   '.vjs-custom-progress-inactive'
+    // );
 
-    if (leftDiv) {
-      leftDiv.style.width = leftBlock + '%';
-    }
-    if (rightDiv) {
-      rightDiv.style.width = rightBlock + '%';
-    }
-    // Set the width of dummy slider ranges based on duration of each item
-    for (let ds of dummySliders) {
-      const dsIndex = ds.dataset.srcindex;
-      let styleWidth = (targets[dsIndex].duration * 100) / duration;
-      ds.style.width = styleWidth + '%';
-    }
+    // if (leftDiv) {
+    //   leftDiv.style.width = leftBlock + '%';
+    // }
+    // if (rightDiv) {
+    //   rightDiv.style.width = rightBlock + '%';
+    // }
+    // // Set the width of dummy slider ranges based on duration of each item
+    // for (let ds of dummySliders) {
+    //   const dsIndex = ds.dataset.srcindex;
+    //   let styleWidth = (targets[dsIndex].duration * 100) / duration;
+    //   ds.style.width = styleWidth + '%';
+    // }
 
-    document.getElementById('slider-range').style.width = toPlay + '%';
+    // this.el().querySelector('.slider-range').style.width = toPlay + '%';
   }
 
   /**
@@ -120,8 +135,8 @@ class VideoJSProgress extends vjsComponent {
     }
 
     // Mark the preceding dummy slider ranges as 'played'
-    const dummySliders = document.getElementsByClassName(
-      'vjs-custom-progress-inactive'
+    const dummySliders = this.el().querySelectorAll(
+      '.vjs-custom-progress-inactive'
     );
     for (let slider of dummySliders) {
       const sliderIndex = slider.dataset.srcindex;
@@ -133,7 +148,7 @@ class VideoJSProgress extends vjsComponent {
     // Calculate the played percentage of the media file's duration
     const played = Number(((curTime - start) * 100) / (end - start));
 
-    document.documentElement.style.setProperty(
+    this.el().style.setProperty(
       '--range-progress',
       `calc(${played}%)`
     );
@@ -153,7 +168,19 @@ class VideoJSProgress extends vjsComponent {
   }
 }
 
-function ProgressBar({ player, handleTimeUpdate, times, options }) {
+vjsComponent.registerComponent('VideoJSProgress', VideoJSProgress);
+
+export const MarkerContainer = ({ player, }) => {
+};
+
+/**
+ * @param {Object} props
+ * @param {VideoJSPlayer} props.player - videojs player object
+ * @param {Function} props.handleTimeUpdate - callback func to update
+ * @param {PlaybackRange} props.times - playback range
+ * @param {VideoJSProgressOptions} props.options - player options
+ */
+export const ProgressBar = ({ player, handleTimeUpdate, times, options }) => {
   const [progress, _setProgress] = React.useState(0);
   const [currentTime, setCurrentTime] = React.useState(player.currentTime());
   const timeToolRef = React.useRef();
@@ -164,7 +191,11 @@ function ProgressBar({ player, handleTimeUpdate, times, options }) {
   const [tRight, setTRight] = React.useState([]);
   const [activeSrcIndex, setActiveSrcIndex] = React.useState(0);
 
-  let progressRef = React.useRef(progress);
+  // round to 2 decimal places because otherwise floating point silliness might prevent us from getting a flat 100%
+  const leftBlockWidth = Math.floor(((times.start * 100) / options.duration) * 100) / 100;
+  const rightBlockWidth = Math.floor((((options.duration - times.end) * 100) / options.duration) * 100) / 100;
+
+  const progressRef = React.useRef(progress);
   const setProgress = (p) => {
     progressRef.current = p;
     _setProgress(p);
@@ -224,9 +255,10 @@ function ProgressBar({ player, handleTimeUpdate, times, options }) {
    * @returns time equvalent of the hovered position
    */
   const convertToTime = (e, index) => {
-    let time =
-      (e.nativeEvent.offsetX / e.target.clientWidth) * (e.target.max - e.target.min)
-      ;
+    let time = (
+      (e.nativeEvent.offsetX / e.target.clientWidth)
+      * (e.target.max - e.target.min)
+    );
     if (index != undefined) time += targets[index].altStart;
     return time;
   };
@@ -324,10 +356,9 @@ function ProgressBar({ player, handleTimeUpdate, times, options }) {
         createRange(tLeft)
       ) : (
         <div
-          className="block-stripes"
+          className="block-stripes block-left"
           ref={leftBlockRef}
-          id="left-block"
-          style={{ width: '0%' }}
+          style={{ width: `${leftBlockWidth}%` }}
         />
       )}
       <input
@@ -336,25 +367,23 @@ function ProgressBar({ player, handleTimeUpdate, times, options }) {
         max={times.end}
         value={progress}
         data-srcindex={srcIndex}
-        className="vjs-custom-progress"
+        className="vjs-custom-progress slider-range"
         onChange={updateProgress}
         onMouseMove={(e) => handleMouseMove(e, false)}
-        id="slider-range"
         ref={sliderRangeRef}
       ></input>
       {tRight.length > 0 ? (
         createRange(tRight)
       ) : (
         <div
-          className="block-stripes"
-          id="right-block"
-          style={{ width: '0%' }}
+          className="block-stripes block-right"
+          style={{ width: `${rightBlockWidth}` }}
         />
       )}
     </div>
   );
-}
+};
 
-vjsComponent.registerComponent('VideoJSProgress', VideoJSProgress);
+
 
 export default VideoJSProgress;

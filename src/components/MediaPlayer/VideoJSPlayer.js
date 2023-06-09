@@ -3,9 +3,6 @@ import PropTypes from 'prop-types';
 import videojs from 'video.js';
 import 'videojs-hotkeys';
 
-import 'videojs-markers-plugin/dist/videojs-markers-plugin';
-import 'videojs-markers-plugin/dist/videojs.markers.plugin.css';
-
 require('@silvermine/videojs-quality-selector')(videojs);
 import '@silvermine/videojs-quality-selector/dist/css/quality-selector.css';
 
@@ -36,6 +33,7 @@ import VideoJSPreviousButton from './VideoJSComponents/js/VideoJSPreviousButton'
 function VideoJSPlayer({
   isVideo,
   switchPlayer,
+  portals = [],
   handleIsEnded,
   ...videoJSOptions
 }) {
@@ -240,9 +238,8 @@ function VideoJSPlayer({
    * 3. timeupdate event fired when playing the media file
    */
   React.useEffect(() => {
-    if (!player || !currentPlayer) {
-      return;
-    }
+    if (!player || !currentPlayer) return;
+
     if (currentNavItem !== null && isReady) {
       // Mark current time fragment
       if (player.markers) {
@@ -445,6 +442,7 @@ function VideoJSPlayer({
           className="video-js vjs-default-skin"
         ></audio>
       )}
+      {portals}
     </div>
   );
 }

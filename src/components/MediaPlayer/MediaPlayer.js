@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import PropTypes from 'prop-types';
 import VideoJSPlayer from '@Components/MediaPlayer/VideoJSPlayer';
 import ErrorMessage from '@Components/ErrorMessage/ErrorMessage';
@@ -33,9 +33,7 @@ const MediaPlayer = ({ enableFileDownload = false }) => {
   const [isMultiCanvased, setIsMultiCanvased] = React.useState(false);
   const [lastCanvasIndex, setLastCanvasIndex] = React.useState(0);
 
-  const { canvasIndex, manifest, canvasDuration, srcIndex, targets } =
-    manifestState;
-  const { player } = playerState;
+  const { canvasIndex, manifest, canvasDuration, srcIndex, targets } = manifestState;
 
   React.useEffect(() => {
     if (manifest) {
@@ -165,7 +163,7 @@ const MediaPlayer = ({ enableFileDownload = false }) => {
   const handleEnded = () => {
     initCanvas(canvasIndex + 1);
   };
-
+  const [ProgressPortal, setProgressPortal] = useState(null);
   let videoJsOptions = {
     aspectRatio: playerConfig.sourceType === 'video' ? '16:9' : '1:0',
     autoplay: false,
@@ -195,10 +193,11 @@ const MediaPlayer = ({ enableFileDownload = false }) => {
         srcIndex,
         targets,
         nextItemClicked,
+        setPortal: setProgressPortal
       },
       videoJSCurrentTime: {
         srcIndex,
-        targets,
+        targets
       },
       // disable fullscreen toggle button for audio
       fullscreenToggle: (playerConfig.sourceType === 'audio' || playerConfig.sourceType === 'sound') ? false : true,
@@ -241,6 +240,7 @@ const MediaPlayer = ({ enableFileDownload = false }) => {
     };
   }
 
+
   return ready ? (
     <div
       data-testid="media-player"
@@ -251,6 +251,7 @@ const MediaPlayer = ({ enableFileDownload = false }) => {
         isVideo={playerConfig.sourceType === 'video'}
         switchPlayer={switchPlayer}
         handleIsEnded={handleEnded}
+        portals={[ProgressPortal]}
         {...videoJsOptions}
       />
     </div>

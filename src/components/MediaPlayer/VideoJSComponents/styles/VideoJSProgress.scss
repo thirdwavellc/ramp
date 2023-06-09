@@ -1,158 +1,187 @@
-@import '../../../../styles/_vars.scss';
+@import "../../../../styles/_vars.scss";
 
-.video-js .vjs-custom-progress-bar {
+.ramp--marker {
+  pointer-events: all;
   cursor: pointer;
-  flex: auto;
-  display: flex;
-  align-items: center;
-  min-width: 4em;
-  touch-action: none;
+  height: 50%;
+  width: 8px;
+  position: absolute;
+  left: 0;
+  top: 8px;
+  opacity: 0.5;
+  background: rgb(128, 165, 144);
+  transition: opacity 0.2s ease;
+  -webkit-transition: opacity 0.2s ease;
+  -moz-transition: opacity 0.2s ease;
+  transform: translateX(-50%);
+  z-index: 100;
+  &:hover {
+    opacity: 1;
+  }
 }
 
-.vjs-progress-holder {
-  border-radius: 0px;
-  height: 4px !important;
-  display: flex;
-  align-items: center;
-  margin: 0 10px;
+.ramp--marker-container {
+  height: 100%;
+  position: absolute;
+  pointer-events: none;
+  left: 0;
+  top: 0;
+  content: " ";
+  display: block;
+  width: 100%;
 }
 
-.vjs-custom-progress,
-.vjs-custom-progress-inactive {
+.ramp--progress_wrapper {
+  --ramp-progress_thumb--size: 8px;
+  display: flex;
+  width: 100%;
+  align-items: center;
+  flex-direction: row;
+}
+
+.ramp--progress_container {
+  height: 100%;
+  flex: 1 1 auto;
+  display: flex;
+  position: relative;
+  flex-direction: row;
+  align-items: center;
+}
+
+.ramp--progress_bar,
+.ramp--progress_bar-inactive {
+  --range-percent: calc(var(--range-progress) * 100%);
+  --ramp-progress_thumb--offset: calc(var(--range-percent) - 50%);
   -webkit-appearance: none;
   -moz-appearance: none;
   appearance: none;
-  background-color: $primaryGreenLight;
-  height: 4px;
+  background-color: transparent;
+  height: 16px;
   margin: 0;
   cursor: pointer;
 
   &:hover {
-    transform: scale(1, 1) !important;
+    // transform: scale(1, 1) !important;
   }
 }
 
 /* --------- CSS for slider track for different browsers --------- */
-.vjs-custom-progress::-webkit-slider-runnable-track {
+.ramp--progress_bar::-webkit-slider-runnable-track {
   -webkit-appearance: none;
   appearance: none;
   height: 4px;
-  background: linear-gradient(90deg,
-      $primaryGreenDark var(--range-progress),
-      $primaryGreenLight var(--range-progress));
+  background: linear-gradient(90deg, $primaryGreenDark var(--range-percent), $primaryGreenLight var(--range-percent));
 }
 
 // For Firefox browsers
-.vjs-custom-progress::-moz-range-track {
+.ramp--progress_bar::-moz-range-track {
   -moz-appearance: none;
   appearance: none;
   height: 4px;
-  background: linear-gradient(90deg,
-      $primaryGreenDark var(--range-progress),
-      $primaryGreenLight var(--range-progress));
+  background: linear-gradient(90deg, $primaryGreenDark var(--range-percent), $primaryGreenLight var(--range-percent));
 }
 
 // For IE/Edge browsers
-.vjs-custom-progress::-ms-track {
+.ramp--progress_bar::-ms-track {
   appearance: none;
   height: 4px;
-  background: linear-gradient(90deg,
-      $primaryGreenDark var(--range-progress),
-      $primaryGreenLight var(--range-progress));
+  background: linear-gradient(90deg, $primaryGreenDark var(--range-percent), $primaryGreenLight var(--range-percent));
 }
 
 /* --------- CSS for slider track thumb for different browsers --------- */
-.vjs-custom-progress::-webkit-slider-thumb {
+.ramp--progress_bar::-webkit-slider-thumb {
+  transform: translateX(var(--ramp-progress_thumb--offset));
   -webkit-appearance: none;
   appearance: none;
   cursor: pointer;
   background: $primaryLight;
   border-radius: 5px;
-  width: 8px;
-  height: 8px;
+  width: var(--ramp-progress_thumb--size);
+  height: var(--ramp-progress_thumb--size);
   opacity: 1 !important;
   margin-top: -0.15em;
   z-index: 1001;
 }
 
-// For Firefox browsers
-.vjs-custom-progress::-moz-range-thumb {
+// // For Firefox browsers
+.ramp--progress_bar::-moz-range-thumb {
+  transform: translateX(var(--ramp-progress_thumb--offset));
   -moz-appearance: none;
   appearance: none;
   cursor: pointer;
   background: $primaryLight;
   border-radius: 9px;
-  width: 8px;
-  height: 8px;
+  width: var(--ramp-progress_thumb--size);
+  height: var(--ramp-progress_thumb--size);
   opacity: 1 !important;
   margin-top: -0.45em;
   z-index: 1001;
 }
 
-// For IE/Edge browsers
-.vjs-custom-progress::-ms-thumb {
+// // For IE/Edge browsers
+.ramp--progress_bar::-ms-thumb {
+  transform: translateX(var(--ramp-progress_thumb--offset));
   appearance: none;
   cursor: pointer;
   background: $primaryLight;
   border-radius: 5px;
-  width: 8px;
-  height: 8px;
+  width: var(--ramp-progress_thumb--size);
+  height: var(--ramp-progress_thumb--size);
   opacity: 1 !important;
   margin-top: -0.25em;
   z-index: 1001;
 }
 
 /* --------- CSS for slider track thumb for inactive tracks --------- */
-.vjs-custom-progress-inactive::-webkit-slider-thumb {
+.ramp--progress_bar-inactive::-webkit-slider-thumb {
   -webkit-appearance: none;
 }
 
 // For Firefox browsers
-.vjs-custom-progress-inactive::-moz-range-thumb {
+.ramp--progress_bar-inactive::-moz-range-thumb {
   -webkit-appearance: none;
   height: 0;
   width: 0;
 }
 
 // For IE/Edge browsers
-.vjs-custom-progress-inactive::-ms-thumb {
+.ramp--progress_bar-inactive::-ms-thumb {
   appearance: none;
 }
 
-.block-stripes {
-  height: inherit;
+.ramp--progress_bar--stripes {
   color: white;
-  background: repeating-linear-gradient(45deg,
-      $primaryDarker,
-      $primaryDarker 8px,
-      $primaryDark 8px,
-      $primaryDark 16px);
+  height: 4px;
+  cursor: not-allowed;
+  background: repeating-linear-gradient(45deg, $primaryDarker, $primaryDarker 8px, $primaryDark 8px, $primaryDark 16px);
 }
 
-.vjs-progress-holder .tooltiptext {
+.ramp--progress_tooltip {
+  --ramp-progress_tooltip--offset: calc((var(--range-progress) - 0.5) * var(--ramp-progress_thumb--size));
   visibility: hidden;
   width: 5em;
+  user-select: none;
   background-color: $primaryDark;
   color: #fff;
   text-align: center;
   border-radius: 6px;
   padding: 5px 5px;
-  top: -2em;
+  top: -50%;
   position: absolute;
   z-index: 1;
+  transform: translateX(calc(-50% + var(--ramp-progress_tooltip--offset)));
+  &::after {
+    content: "";
+    position: absolute;
+    top: 100%;
+    left: 50%;
+    margin-left: -5px;
+    border-width: 5px;
+    border-style: solid;
+    border-color: $primaryDark transparent transparent transparent;
+  }
 }
 
-.vjs-progress-holder:hover .tooltiptext {
+.ramp--progress_wrapper:hover .ramp--progress_tooltip {
   visibility: visible;
-}
-
-.vjs-progress-holder .tooltiptext::after {
-  content: '';
-  position: absolute;
-  top: 100%;
-  left: 50%;
-  margin-left: -5px;
-  border-width: 5px;
-  border-style: solid;
-  border-color: $primaryDark transparent transparent transparent;
 }

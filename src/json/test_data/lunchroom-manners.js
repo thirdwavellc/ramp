@@ -131,7 +131,7 @@ export default {
       id: 'https://example.com/lunchroom-manners/manifest/canvas/2',
       width: 480,
       height: 360,
-      duration: 660,
+      duration: 572.034,
       items: [
         {
           id: 'https://example.com/manifest/canvas/2/page',

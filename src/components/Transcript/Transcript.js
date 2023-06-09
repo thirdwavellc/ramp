@@ -150,7 +150,6 @@ export const Transcript = ({ playerID, transcripts, showDownload: showSelect = t
 
         if (resultItem.begin < playbackRange.start || resultItem.begin > playbackRange.end) return null;
         // ^^ no markers for items outside the playback range ^^
-
         return {
           time: resultItem.begin,
           text: resultItem.text,
@@ -265,7 +264,7 @@ export const Transcript = ({ playerID, transcripts, showDownload: showSelect = t
   /** @type {React.MutableRefObject<((this: HTMLVideoElement, ev: Event & { target: HTMLVideoElement }) => any)>} */
   const onPlaybackRef = useRef();
   onPlaybackRef.current = e => {
-    if (e == null || e.target == null || !areTranscriptsTimed || !followingVideo.current) return;
+    if (e === null || e.target === null || !areTranscriptsTimed || !followingVideo.current) return;
     const currentTime = e.target.currentTime;
 
     for (const transcriptLine of /** @type {TimedTranscriptItem[]} */ (transcript)) {
@@ -321,7 +320,7 @@ export const Transcript = ({ playerID, transcripts, showDownload: showSelect = t
     const data = await checkManifestAnnotations(t);
     // Check if a single item without transcript info is
     // listed to hide transcript selector from UI
-    if (data?.length == 1 && data[0].validity != TRANSCRIPT_VALIDITY.transcript) {
+    if (data?.length == 1 && data[0].validity !== TRANSCRIPT_VALIDITY.transcript) {
       setIsEmpty(true);
     }
     setCanvasTranscripts(data);
@@ -330,7 +329,7 @@ export const Transcript = ({ playerID, transcripts, showDownload: showSelect = t
 
 
   useEffect(() => {
-    const getCanvasT = tr => tr.filter((t) => t.canvasId == canvasIndex);
+    const getCanvasT = tr => tr.filter((t) => String(t.canvasId) === String(canvasIndex));
     const getTItems = tr => getCanvasT(tr)[0].items;
     /**
      * When transcripts prop is empty
@@ -514,7 +513,7 @@ export const Transcript = ({ playerID, transcripts, showDownload: showSelect = t
           ref={transcriptContainerRef}
         >
           {transcriptRef.current && timedText}
-          {transcriptUrl != '' && timedText.length == 0 && (
+          {transcriptUrl != '' && timedText.length === 0 && (
             <iframe
               className="transcript_viewer"
               data-testid="transcript_viewer"

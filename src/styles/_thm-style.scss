@@ -30,8 +30,9 @@
         }
     }
 
-    & .vjs-progress-holder.vjs-slider.vjs-slider-horizontal .tooltiptext {
-        top: 16px !important;
+    & .ramp--marker-container:not(:empty) ~ .ramp--progress_tooltip {
+        top: 100%;
+        background: #7e7e7e;
         &:after {
             border-color: transparent transparent #7e7e7e transparent;
             bottom: 100%;
@@ -40,38 +41,17 @@
     }
 
     & .ramp--transcript_search-marker {
-        background-color: transparent !important;
-        width: 0px !important;
-        height: 0px !important;
-        border-style: solid;
-        opacity: 1 !important;
-        border-width: 18px 12px 0 12px !important;
-        border-color: #4ba1bf transparent transparent transparent !important;
-        transform: translate(-25%, calc(-50% - 4px)) scale(0.8) !important;
-        border-top-left-radius: 50% !important;
-        border-top-right-radius: 50% !important;
-        transition: border-color 333ms ease;
-
-        &:after {
-            position: absolute;
-            transition: background-color 333ms ease;
-            left: 50%;
-            transform: translateX(-50%) scaleX(1.2);
-            top: -28px;
-            background-color: #4ba1bf;
-            height: 18px;
-            width: 18px;
-            border-radius: 50%;
-            content: " ";
-        }
+        background-color: transparent;
+        width: 18px;
+        height: 24px;
+        background-size: cover;
+        opacity: 1;
+        top: -25%;
+        background-image: url("data:image/svg+xml;base64,PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0iVVRGLTgiPz4KPHN2ZyBpZD0iTGF5ZXJfMSIgZGF0YS1uYW1lPSJMYXllciAxIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxOCAyNCI+CiAgPHBhdGggZD0ibTE2LDguMzhjMCw0LjYzLTgsMTMuNjItOCwxMy42MiwwLDAtOC04Ljk5LTgtMTMuNjJTMy41OCwwLDgsMHM4LDMuNzUsOCw4LjM4WiIgc3R5bGU9ImZpbGw6ICMwMGE3Yzc7Ii8+Cjwvc3ZnPg==");
 
         &:hover {
-            opacity: 1 !important;
-            transform: translate(-25%, calc(-50% - 4px)) scale(0.8) !important;
-            border-color: #ffffff transparent transparent transparent !important;
-            &::after {
-                background-color: #ffffff;
-            }
+            opacity: 1;
+            background-image: url("data:image/svg+xml;base64,PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0iVVRGLTgiPz4KPHN2ZyBpZD0iTGF5ZXJfMSIgZGF0YS1uYW1lPSJMYXllciAxIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxOCAyNCI+CiAgPHBhdGggZD0ibTE2LDguMzhjMCw0LjYzLTgsMTMuNjItOCwxMy42MiwwLDAtOC04Ljk5LTgtMTMuNjJTMy41OCwwLDgsMHM4LDMuNzUsOCw4LjM4WiIgc3R5bGU9ImZpbGw6ICNmZmZmZmY7Ii8+Cjwvc3ZnPg==");
         }
     }
 

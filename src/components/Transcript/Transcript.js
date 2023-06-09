@@ -61,7 +61,7 @@ const waitForSelector = (selector, interval = 333, timeout = 15000) => {
   });
 }
 
-export const Transcript = ({ playerID, transcripts, showDownload: showSelect = true, showSearch = true, followVideo = true }) => {
+export const Transcript = ({ initialSearchQuery = null, playerID, transcripts, showDownload: showSelect = true, showSearch = true, followVideo = true }) => {
   const [canvasTranscripts, setCanvasTranscripts] = React.useState([]);
   /** @type {[TranscriptItem[], React.Dispatch<React.SetStateAction<TranscriptItem[]>>]} */
   const [transcript, _setTranscript] = React.useState([]);
@@ -76,7 +76,7 @@ export const Transcript = ({ playerID, transcripts, showDownload: showSelect = t
   const [transcriptUrl, setTranscriptUrl] = React.useState('');
   const [canvasIndex, _setCanvasIndex] = React.useState(0);
   const [isLoading, setIsLoading] = React.useState(true);
-  const [searchQuery, setSearchQuery] = React.useState(null);
+  const [searchQuery, setSearchQuery] = React.useState(initialSearchQuery);
   const [errorMsg, setError] = React.useState('');
   const [machineGenerated, setMachineGenerated] = React.useState(false);
   const [noTranscript, setNoTranscript] = React.useState(false);
@@ -162,8 +162,8 @@ export const Transcript = ({ playerID, transcripts, showDownload: showSelect = t
   }, [searchResults, areTranscriptsTimed, playerCtx?.player]);
 
   /**
-     * @param {HTMLDivElement} textRef  - dom node to center on
-     */
+   * @param {HTMLDivElement} textRef  - dom node to center on
+   */
   const scrollToRef = (textRef) => {
     if (!textRef) return;
     if (!transcriptContainerRef.current) return;
@@ -248,8 +248,6 @@ export const Transcript = ({ playerID, transcripts, showDownload: showSelect = t
     }
   }, [searchResults, focusedLine, transcript, focusedMatchIndex]);
 
-
-  const withinRange = t => playbackRange && t.begin >= playbackRange.start && t.end <= playbackRange.end;
 
   /** @type {[null|HTMLVideoElement, React.Dispatch<null|HTMLVideoElement>]} */
   const [player, setPlayer] = useState(null);

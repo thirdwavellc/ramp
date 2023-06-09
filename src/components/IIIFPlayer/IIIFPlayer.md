@@ -44,6 +44,7 @@ import './IIIFPlayer.scss';
 
       <Transcript
         playerID="iiif-media-player"
+        initialSearchQuery={window.location.search &&  new URLSearchParams(window.location.search).get('q')}
         transcripts={[
           {
             canvasId: 0,

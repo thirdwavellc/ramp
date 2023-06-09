@@ -1,8 +1,8 @@
-import React from 'react';
+import React, { useState } from 'react';
 import PropTypes from 'prop-types';
 import VideoJSPlayer from '@Components/MediaPlayer/VideoJSPlayer';
 import ErrorMessage from '@Components/ErrorMessage/ErrorMessage';
-import { getMediaInfo, getPoster } from '@Services/iiif-parser';
+import { canvasesInManifest, getMediaInfo, getPoster } from '@Services/iiif-parser';
 import { getMediaFragment } from '@Services/utility-helpers';
 import {
   useManifestDispatch,
@@ -30,14 +30,20 @@ const MediaPlayer = ({ enableFileDownload = false }) => {
   const [ready, setReady] = React.useState(false);
   const [cIndex, setCIndex] = React.useState(canvasIndex);
   const [isMultiSource, setIsMultiSource] = React.useState();
+  const [isMultiCanvased, setIsMultiCanvased] = React.useState(false);
+  const [lastCanvasIndex, setLastCanvasIndex] = React.useState(0);
 
-  const { canvasIndex, manifest, canvasDuration, srcIndex, targets } =
-    manifestState;
-  const { player } = playerState;
+  const { canvasIndex, manifest, canvasDuration, srcIndex, targets } = manifestState;
 
   React.useEffect(() => {
     if (manifest) {
       initCanvas(canvasIndex);
+
+      // flag to identify multiple canvases in the manifest
+      // to render previous/next buttons
+      const canvases = canvasesInManifest(manifest);
+      setIsMultiCanvased(canvases.length > 1 ? true : false);
+      setLastCanvasIndex(canvases.length - 1);
     }
 
     return () => {
@@ -143,15 +149,21 @@ const MediaPlayer = ({ enableFileDownload = false }) => {
   };
 
   // Switch player when navigating across canvases
-  const switchPlayer = () => {
-    initCanvas(canvasIndex);
+  const switchPlayer = (index) => {
+    if (canvasIndex != index) {
+      manifestDispatch({
+        canvasIndex: index,
+        type: 'switchCanvas',
+      });
+    }
+    initCanvas(index);
   };
 
   // Load next canvas in the list when current media ends
   const handleEnded = () => {
     initCanvas(canvasIndex + 1);
   };
-
+  const [ProgressPortal, setProgressPortal] = useState(null);
   let videoJsOptions = {
     aspectRatio: playerConfig.sourceType === 'video' ? '16:9' : '1:0',
     autoplay: false,
@@ -164,7 +176,9 @@ const MediaPlayer = ({ enableFileDownload = false }) => {
       // See https://docs.videojs.com/tutorial-components.html for options of what
       // seem to be supported controls
       children: [
+        isMultiCanvased ? 'videoJSPreviousButton' : '',
         'playToggle',
+        isMultiCanvased ? 'videoJSNextButton' : '',
         'volumePanel',
         'videoJSProgress',
         'videoJSCurrentTime',
@@ -179,10 +193,11 @@ const MediaPlayer = ({ enableFileDownload = false }) => {
         srcIndex,
         targets,
         nextItemClicked,
+        setPortal: setProgressPortal
       },
       videoJSCurrentTime: {
         srcIndex,
-        targets,
+        targets
       },
       // disable fullscreen toggle button for audio
       fullscreenToggle: (playerConfig.sourceType === 'audio' || playerConfig.sourceType === 'sound') ? false : true,
@@ -207,6 +222,25 @@ const MediaPlayer = ({ enableFileDownload = false }) => {
     };
   }
 
+  if (isMultiCanvased) {
+    videoJsOptions = {
+      ...videoJsOptions,
+      controlBar: {
+        ...videoJsOptions.controlBar,
+        videoJSPreviousButton: {
+          canvasIndex,
+          switchPlayer
+        },
+        videoJSNextButton: {
+          canvasIndex,
+          lastCanvasIndex,
+          switchPlayer
+        },
+      }
+    };
+  }
+
+
   return ready ? (
     <div
       data-testid="media-player"
@@ -217,6 +251,7 @@ const MediaPlayer = ({ enableFileDownload = false }) => {
         isVideo={playerConfig.sourceType === 'video'}
         switchPlayer={switchPlayer}
         handleIsEnded={handleEnded}
+        portals={[ProgressPortal]}
         {...videoJsOptions}
       />
     </div>

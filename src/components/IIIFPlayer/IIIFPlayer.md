@@ -34,10 +34,9 @@ import './IIIFPlayer.scss';
  *      e.g: manifestUrl="http://example.com/my-manifest.json"
  *  - remove 'manifest={mockData}' line, since local manifest takes precedence over 'manifestUrl'
  **/
-
 <div className="thm-style">
   <IIIFPlayer
-    manifestUrl={`${config.url}/manifests/${config.env}/mahler-symphony-3.json`}
+    manifestUrl={`${config.url}/manifests/${config.env}/lunchroom_manners.json`}
     manifest={mockData}
   >
     <div className="iiif-player-demo full-width">

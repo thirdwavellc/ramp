@@ -1,13 +1,14 @@
 import { useEffect, useRef } from 'react';
 import fuzzysort from 'fuzzysort';
-import MiniSearch from 'minisearch';
 
 const wordRegexp = /[\d\p{General_Category=Letter}]/ug;
 
 /**
  * @typedef PseudoMatch
+ * @property {number} score - the score of the match (-Infinity to 0, 0 being a perfect match)
  * @property {string} target - the full text being matched
  * @property {number[]} indices - indices the matched codepoints
+ * @property {any} [obj] - the original object being tested
  */
 
 /** 
@@ -16,7 +17,7 @@ const wordRegexp = /[\d\p{General_Category=Letter}]/ug;
  * @param {Fuzzysort.Result|any} result - a fuzzy search result object
  * @returns {number[]} the cleaned indices where matches occurred
  */
-export const getIndices = result => 'indices' in result ? result.indices : result._indexes.slice(0, result._indexes.len);
+export const getIndices = result => [...('indices' in result ? result.indices : result._indexes.slice(0, result._indexes.len))];
 /**
  * @typedef SearchTerm
  * @property {string} value - the text of the search term
@@ -211,7 +212,7 @@ export const linkTermsToTokens = (match, tokens, terms) => {
                 }
             }
             if (termTokens.length === 0) {
-                return null;
+                // return null;
             }
         } while (acceptedTokens.length !== term.codepoints.length);
 
@@ -221,17 +222,44 @@ export const linkTermsToTokens = (match, tokens, terms) => {
     return results;
 }
 
+const areContiguous = (indices) => {
+    for (let i = 0; i < indices.length - 1; i++) {
+        if (indices[i] + 1 !== indices[i + 1]) return false;
+    }
+    return true;
+};
+
 /**
+ * Fuzzysort has the tendency to return unnecessarily disjointed matches.
+ * 
+ * For example when searching for "tle" against this string:
+ * ```
+ *   "However, this bottle was not marked “poison,” so Alice ventured to taste it"
+ * ```
+ * Fuzzysort will may (but not always) return a match like this:
+ * ```
+ *   "However, [t]his bott[le] was not marked “poison,” so Alice ventured to taste it"
+ * ```
+ * That's not as good of a match as this:
+ * ```
+ *  "However, this bot[tle] was not marked “poison,” so Alice ventured to taste it"
+ * ```
+ * This function basically reruns the search until it gets matches that are as contiguous
+ * as possible by discarding the all characters up until the first matching index and attempting
+ * to rematch.
  * 
  * @param {Fuzzysort.Result} match - the fuzzysort result to match
  * @param {string} query - the search query
+ * @returns {PseudoMatch} the indices of the refined matched along with the score
  */
 export const refineMatch = (match, query) => {
+    const target = match.target;
     let offset = 0;
     let result = match;
     while (true) {
         const indices = getIndices(result);
-        const start = indices.unshift() + 1;
+        if (areContiguous(indices)) break;
+        const start = indices.shift() + 1;
         const truncatedText = result.target.slice(start);
         const truncatedResult = fuzzysort.single(query, truncatedText);
         if (truncatedResult) {
@@ -241,8 +269,45 @@ export const refineMatch = (match, query) => {
             break;
         }
     }
-    return getIndices(result).map(i => i + offset);
+    return {
+        target,
+        obj: (/** @type {Fuzzysort.KeyResult<any>} */(match)).obj,
+        indices: getIndices(result).map(i => i + offset),
+        score: result.score
+    };
 }
+
+/**
+ * Takes a PseudoMatch an returns an array of tokens with the matched codepoints highlighted
+ * Strings at odd indices are highlighted, strings at even indices are not
+ * @param {PseudoMatch} match - the refined match object
+ * @returns {string[]} the highlighted text
+ */
+export const highlight = (match) => {
+    const results = [];
+    const codepoints = Array.from(match.target);
+    if (match.indices.length === 0) return [match.target];
+    const indices = [...match.indices].sort((a, b) => a - b); // copy so we don't mutate
+    let offset = 0;
+    while (offset < codepoints.length) {
+        const index = indices.shift();
+        if (index === undefined) {
+            results.push(codepoints.slice(offset));
+            break;
+        }
+        const nonMatching = codepoints.slice(offset, index);
+        const match = codepoints.slice(index, index + 1);
+        if (index !== 0 && offset === index) { // continue adjacent matched codepoint
+            results[results.length - 1].push(...match);
+        } else {
+            results.push(nonMatching);
+            results.push(match);
+        }
+        offset = index + 1;
+    }
+
+    return results.map(chunk => chunk.join(''));
+};
 
 /**
  * @param {Fuzzysort.Result|PseudoMatch} match - a result object from fuzzysort
@@ -255,23 +320,23 @@ export const validateMatch = (match, query) => {
     let indices = getIndices(match);
     const matchedTerms = linkTermsToTokens(indices, tokens, terms);
     if (!matchedTerms) {
-        console.log(terms);//tokens);
-        throw new Error(`terms invalid\n\tindices:`);//${indices}\n\t${terms}`);
+        // console.log(terms);//tokens);
+        throw new Error(`terms invalid\n\tindices ${indices.join(',')}\n\t${terms}`);
     }
 
     for (const termMatch of matchedTerms) {
         // console.log(termMatch);
         if (termMatch.tokens.length > 1) { // this is now a split term
             const token0 = termMatch.tokens[0];
-            let tIdx = 0;
-            let codepoints = 0;
+            let cpIdx = 0;
             do {
-                const cpIdx = indices.shift();
-                const token = termMatch.tokens[tIdx];
-                const lastToken = termMatch.tokens[tIdx - 1] ?? null;
-                const nextToken = termMatch.tokens[tIdx + 1] ?? null;
+                const absoluteOffset = indices.shift();
+                const token = termMatch.tokens[cpIdx];
+                const prevToken = termMatch.tokens[cpIdx - 1] ?? null;
+                const nextToken = termMatch.tokens[cpIdx + 1] ?? null;
 
-                if (token.start > cpIdx) continue;
+                if (token.start > absoluteOffset) continue;
+
                 // if (token.end < cpIdx) {
                 //     if (token.start <= cpIdx) console.log('left');
                 //     if (token.end < cpIdx) console.log('right');
@@ -281,33 +346,33 @@ export const validateMatch = (match, query) => {
                 // }
 
                 if (token !== nextToken) {
-                    if (token === token0 && token.end - 1 !== cpIdx) {
-                        // the match did not make it to the end of the first token, reject
+                    if (token === token0 && nextToken && token.end - 1 !== absoluteOffset) {
+                        // the match did not make it to the end of the first token, and there are still more tokens to match, reject
                         return false;
                     }
-                    tIdx++;
                 }
-                if (token !== lastToken && token !== token0) {
+                if (token !== prevToken && token !== token0 && nextToken) {
                     // first codepoint of a new token (not the first token)
-                    if (token.start !== cpIdx) {
+                    if (token.start !== absoluteOffset) {
                         // the match did not start at the beginning of the token, reject
                         return false;
                     } else {
                         // check to ensure there are no tokens between here and lastToken
                         let priorSibling = tokens[token.index - 1];
                         while (priorSibling) {
-                            if (priorSibling.kind === 'word' && priorSibling !== lastToken) {
+                            if (priorSibling.kind === 'word' && priorSibling !== prevToken) {
                                 // there is a word token between here and lastToken, reject
                                 return false;
                             } else {
                                 priorSibling = tokens[priorSibling.index - 1];
+                                if (priorSibling === prevToken) break;
                             }
 
                         }
                     }
                 }
-                codepoints++;
-            } while (codepoints < termMatch.term.codepoints.length);
+                cpIdx++;
+            } while (cpIdx < termMatch.term.codepoints.length);
         }
     }
     return true;
@@ -335,7 +400,7 @@ export const validateMatch = (match, query) => {
  * @property {TranscriptItem|string} item - the original unmodified transcript item
  * @property {string[]} highlighted - the highlighted text (string at odd indices are matches and will be highlighted)
  * @property {number} score - score of the match
- * @property {number} id - the id of the transcript item
+ * @property {number} id - the id of the transcript item 
  */
 
 let searchStore = null;
@@ -347,33 +412,23 @@ let wrappedItems = null;
  * @returns {TranscriptItemSearchMatch[]} - transcripts matching the search query
  */
 const defaultMatcher = (query, items) => {
-    // if (lastDataSet !== items || !searchStore) {
-    //     lastDataSet = items;
-    //     searchStore = new MiniSearch({
-    //         fields: ['text'],
-    //         storeFields: ['text'],
-    //         searchOptions: { fuzzy: 0.2 }
-    //     });
-
-    //     wrappedItems = lastDataSet.map((item, idx) => typeof item === 'string' ? { text: item, id: idx } : { id: idx, ...item });
-    //     searchStore.addAll(wrappedItems);
-    // }
-    // const results2 = searchStore.search(query);
-    // const results = results2.map(({ id, score }) => ({ ...lastDataSet[id], score }));
     const wrapped = items.map((item, idx) => (
         (typeof item === 'string'
             ? { text: item, id: idx }
             : { id: idx, ...item }
         )
     ));
-    const highlightedResults = fuzzysort.go(query, wrapped, { key: 'text' });
-    return highlightedResults.map((/** @type {any} */match, i) => ({
+    const rawResults = fuzzysort.go(query, wrapped, { key: 'text' }).map(result => refineMatch(result, query));
+    const validatedResults = rawResults.filter(result => result && validateMatch(result, query));
+    return validatedResults.map((/** @type {any} */match) => ({
         item: match.obj,
         id: match.obj.id,
         score: match.obj.score,
-        highlighted: fuzzysort.highlight(match, s => s)
+        highlighted: highlight(match)
     }));
 };
+
+
 
 /**
  * @param {TranscriptItemSearchMatch[]} items - the matches to sort and filter

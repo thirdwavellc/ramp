@@ -13,19 +13,18 @@
     height: 25em;
     overflow-y: auto;
 
-    p {
+    & p {
       font-size: small;
       color: $primaryDarker;
     }
 
-    #no-transcript {
+    & .no-transcript {
       font-size: medium;
       padding: 2em;
     }
-  }
-
-  div.transcript_content.static {
-    overflow-y: unset;
+    &.static {
+      overflow-y: unset;
+    }
   }
 
   .ramp--transcript_menu {
@@ -60,10 +59,14 @@
   }
 }
 
+.ramp--transcript_list {
+  width: 50%;
+}
+
 .ramp--transcript_search {
   display: flex;
   justify-content: space-between;
-  align-items: center;
+  align-items: stretch;
 
   &-match {
     font-weight: 500;
@@ -72,18 +75,32 @@
 
   &-input {
     padding: 4px;
-    width: 100%;
+
+    flex: 1 1 auto;
 
     &-container {
       max-width: 50%;
       flex: 1 1 auto;
+      display: flex;
+      gap: 8px;
     }
   }
 
   &-navigator {
     display: flex;
-    align-items: center;
+    align-items: stretch;
+    flex-direction: row;
     gap: 0.5em;
+  }
+
+  &-count {
+    align-self: center;
+  }
+
+  &-clear {
+    &:disabled {
+      display: none;
+    }
   }
 
   &-prev,
@@ -95,7 +112,7 @@
   }
 }
 
-div.ramp--transcript_item {
+.ramp--transcript_item {
   display: flex;
   padding: 10px;
   cursor: pointer;
@@ -137,17 +154,26 @@ div.ramp--transcript_item {
 .ramp--transcript_selector {
   gap: 0.5em;
   display: flex;
+  flex-wrap: wrap;
   justify-content: space-between;
   & select {
     font-family: $fontPrimary;
     padding: 4px;
     width: 100%;
   }
+}
+.ramp--transcript_selector-content {
+  margin: 0;
+  width: 50%;
+}
 
-  .selector-content {
-    margin: 0;
-    width: 50%;
-  }
+.ramp--transcript_machine_generated {
+  width: 50%;
+  margin: 0;
+  font-size: 0.8em;
+  text-align: right;
+  font-weight: bold;
+  font-style: italic;
 }
 
 @media only screen and (min-width: 992px) {
@@ -177,7 +203,7 @@ button.ramp--transcript_downloader {
     }
   }
 
-  button.ramp--transcript_downloader {
+  .ramp--transcript_downloader {
     .download-label:after {
       content: "Download";
     }
@@ -190,7 +216,7 @@ button.ramp--transcript_downloader {
     // padding: 0.5em;
   }
 
-  button.ramp--transcript_downloader {
+  .ramp--transcript_downloader {
     .download-label:after {
       content: "Download this transcript";
     }

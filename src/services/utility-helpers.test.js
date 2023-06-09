@@ -47,14 +47,14 @@ describe('util helper', () => {
       const expectedObject = { start: 374, end: 525 };
       expect(
         util.getMediaFragment(
-          'http://example.com/mahler-symphony-3/canvas/1#t=374,525', 1985
+          'http://example.com/sample/manifest/canvas/1#t=374,525', 1985
         )
       ).toEqual(expectedObject);
     });
 
     it('returns undefined when uri without time is passed', () => {
       const noTime = util.getMediaFragment(
-        'http://example.com/mahler-symphony-3/range/1-4', 1985
+        'http://example.com/sample/manifest/range/1-4', 1985
       );
 
       expect(noTime).toBeUndefined();
@@ -64,7 +64,7 @@ describe('util helper', () => {
       const expectedObject = { start: 670, end: 1985 };
       expect(
         util.getMediaFragment(
-          'http://example.com/mahler-symphony-3/canvas/1#t=670', 1985
+          'http://example.com/sample/manifest/canvas/1#t=670', 1985
         )
       ).toEqual(expectedObject);
     });
@@ -251,30 +251,64 @@ describe('util helper', () => {
   });
 
   describe('fileDownload()', () => {
-    let originalConsole;
+    let originalConsole, link, createElementSpy;
     beforeEach(() => {
       originalConsole = console.log;
       console.log = jest.fn();
+
+      link = {
+        click: jest.fn(),
+        href: '',
+        download: '',
+        style: { display: '' },
+        setAttribute: jest.fn(),
+      };
+      createElementSpy = jest.spyOn(document, 'createElement').mockReturnValueOnce(link);
+      document.body.appendChild = jest.fn();
+      document.body.removeChild = jest.fn();
     });
     afterEach(() => {
       console.log = originalConsole;
     });
-    test('failed download', () => {
-      console.log = jest.fn((e) => { });
-      const fetchSpy = jest.spyOn(global, 'fetch').mockRejectedValueOnce(
-        new Error('File download failed')
-      );
-      const value = util.fileDownload('http:///example.com/test.vtt', 'test.vtt');
-      expect(fetchSpy).toHaveBeenCalledTimes(1);
+    test('successful download', () => {
+      util.fileDownload('https://example.com/transcript.json', 'Transcript test');
+
+      expect(createElementSpy).toBeCalledWith('a');
+      expect(link.setAttribute.mock.calls.length).toBe(2);
+      expect(link.setAttribute.mock.calls[0]).toEqual(['href', 'https://example.com/transcript.json']);
+      expect(link.setAttribute.mock.calls[1]).toEqual(['download', 'Transcript test.json']);
+      expect(link.style.display).toBe('none');
+      expect(document.body.appendChild).toBeCalledWith(link);
+      expect(link.click).toBeCalled();
+      expect(document.body.removeChild).toBeCalledWith(link);
     });
 
-    test('successful download', () => {
-      console.log = jest.fn((e) => { });
-      const fetchSpy = jest.spyOn(global, 'fetch').mockResolvedValueOnce({
-        status: 200
+    describe('for machine-generated transcripts', () => {
+      test('with machine generared text in title', () => {
+        util.fileDownload('https://example.com/transcript.json', 'Transcript test (machine-generated)', true);
+
+        expect(createElementSpy).toBeCalledWith('a');
+        expect(link.setAttribute.mock.calls.length).toBe(2);
+        expect(link.setAttribute.mock.calls[0]).toEqual(['href', 'https://example.com/transcript.json']);
+        expect(link.setAttribute.mock.calls[1]).toEqual(['download', 'Transcript test (machine-generated).json']);
+        expect(link.style.display).toBe('none');
+        expect(document.body.appendChild).toBeCalledWith(link);
+        expect(link.click).toBeCalled();
+        expect(document.body.removeChild).toBeCalledWith(link);
       });
-      const value = util.fileDownload('http://example.com/test.json', 'test.json');
-      expect(fetchSpy).toHaveBeenCalledTimes(1);
+
+      test('without machine generared text in title adds it to file name', () => {
+        util.fileDownload('https://example.com/transcript.json', 'Transcript test', true);
+
+        expect(createElementSpy).toBeCalledWith('a');
+        expect(link.setAttribute.mock.calls.length).toBe(2);
+        expect(link.setAttribute.mock.calls[0]).toEqual(['href', 'https://example.com/transcript.json']);
+        expect(link.setAttribute.mock.calls[1]).toEqual(['download', 'Transcript test (machine generated).json']);
+        expect(link.style.display).toBe('none');
+        expect(document.body.appendChild).toBeCalledWith(link);
+        expect(link.click).toBeCalled();
+        expect(document.body.removeChild).toBeCalledWith(link);
+      });
     });
   });
 

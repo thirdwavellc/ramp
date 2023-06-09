@@ -5,7 +5,6 @@ import StructuredNavigation from '@Components/StructuredNavigation/StructuredNav
 import Transcript from '@Components/Transcript/Transcript';
 import './app.scss';
 import 'video.js/dist/video-js.css';
-import '../dist/ramp.css';
 
 const App = ({ manifestURL }) => {
   const [userURL, setUserURL] = React.useState(manifestURL);
@@ -69,7 +68,7 @@ const App = ({ manifestURL }) => {
                   canvasId: 0,
                   items: [
                     {
-                      title: 'Manifest linked Transcript',
+                      title: 'From Manifest',
                       url: manifestUrl,
                     }
                   ],

@@ -63,8 +63,7 @@ module.exports = {
   },
   devServer: {
     host: 'localhost',
-    port: 3000,
-    open: true,
+    port: 3003,
     liveReload: true,
     static: {
       directory: path.resolve(__dirname, "public")

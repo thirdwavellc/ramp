@@ -1,12 +1,14 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useContext, useEffect, useMemo, useRef, useState } from 'react';
 import PropTypes from 'prop-types';
 import 'lodash';
 import TranscriptSelector from './TranscriptMenu/TranscriptSelector';
 import TranscriptSearch from './TranscriptMenu/TranscriptSearch';
 import { createTimestamp, getMediaFragment } from '@Services/utility-helpers';
-import { checkManifestAnnotations, parseTranscriptData } from '@Services/transcript-parser';
+import { checkManifestAnnotations, parseTranscriptData, TRANSCRIPT_VALIDITY } from '@Services/transcript-parser';
 import './Transcript.scss';
-import { useFilteredTranscripts } from '../..//context/search';
+import { useFilteredTranscripts } from '../../context/search';
+import { PlayerDispatchContext, PlayerStateContext } from '../../context/player-context';
+
 
 /** @typedef {import('../../context/search').TranscriptSearchResults} TranscriptSearchResults */
 /** @typedef {import('../..//context/search').TranscriptItem} TranscriptItem */
@@ -32,11 +34,14 @@ const highlightTranscriptItem = (t) => (typeof t === 'string'
   )
 );
 
+const NO_TRANSCRIPTS_MSG = 'No valid Transcript(s) found, please check again.';
+const INVALID_URL_MSG = 'Invalid URL for transcript, please check again.';
+
 /**
  * @param {string} selector - dom selector to poll for 
  * @param {number} [interval] - how often to check the dom
  * @param {number} [timeout] - time after we give up
- * @returns {HTMLElement} - the dom element we've all been waiting for
+ * @returns {Promise<Element>} - the dom element we've all been waiting for
  */
 const waitForSelector = (selector, interval = 333, timeout = 15000) => {
   let el = document.querySelector(selector);
@@ -66,13 +71,15 @@ export const Transcript = ({ playerID, transcripts, showDownload: showSelect = t
   const searchResultsRef = useRef(searchResults);
   searchResultsRef.current = searchResults;
 
-
   const [transcriptTitle, setTranscriptTitle] = React.useState('');
+  const [transcriptId, setTranscriptId] = React.useState('');
   const [transcriptUrl, setTranscriptUrl] = React.useState('');
   const [canvasIndex, _setCanvasIndex] = React.useState(0);
   const [isLoading, setIsLoading] = React.useState(true);
   const [searchQuery, setSearchQuery] = React.useState(null);
   const [errorMsg, setError] = React.useState('');
+  const [machineGenerated, setMachineGenerated] = React.useState(false);
+  const [noTranscript, setNoTranscript] = React.useState(false);
 
   const isEmptyRef = useRef(false);
   const setIsEmpty = (e) => {
@@ -126,9 +133,37 @@ export const Transcript = ({ playerID, transcripts, showDownload: showSelect = t
     transcripts: transcript
   });
 
+  const playerCtx = useContext(PlayerStateContext);
+  const playerDispatch = useContext(PlayerDispatchContext);
+
+  useEffect(() => {
+    if (!playerCtx?.player) return;
+    if (!areTranscriptsTimed) return;
+    if (!playbackRange) return;
+    let nextMarkers = [];
+
+    if (searchResults.ids.length < 25 || (searchQuery !== null && searchQuery.length >= 3)) {
+      // ^^ don't show a billion markers if we're searching for a short string ^^
+      nextMarkers = searchResults.ids.map(id => {
+        const result = searchResults.results[id];
+        const resultItem = /** @type {TimedTranscriptItem} */(result.item);
+
+        if (resultItem.begin < playbackRange.start || resultItem.begin > playbackRange.end) return null;
+        // ^^ no markers for items outside the playback range ^^
+        return {
+          time: resultItem.begin,
+          text: resultItem.text,
+          class: 'ramp--transcript_search-marker'
+        };
+      });
+    }
+
+    playerDispatch({ type: 'setSearchMarkers', payload: nextMarkers.filter(m => m !== null) })
+  }, [searchResults, areTranscriptsTimed, playerCtx?.player]);
+
   /**
-   * @param {HTMLDivElement} textRef  - dom node to center on
-   */
+     * @param {HTMLDivElement} textRef  - dom node to center on
+     */
   const scrollToRef = (textRef) => {
     if (!textRef) return;
     if (!transcriptContainerRef.current) return;
@@ -142,14 +177,19 @@ export const Transcript = ({ playerID, transcripts, showDownload: showSelect = t
 
   let timedText = [];
 
-  /** @type {[number|null, React.Dispatch<number\null>]} */
+  /** @type {[number|null, React.Dispatch<number|null>]} */
   const [focusedLine, setFocusedLine] = useState(null);
   /** @type {[number|null, React.Dispatch<number|null>]} */
   const [focusedMatchIndex, setFocusedMatchIndex] = useState(null);
 
   /** @type {{current: number | null}} */
   let lastFocusedLine = useRef(focusedLine);
+  let lastResultsRef = useRef(searchResults);
   useEffect(() => {
+    const searchResultsUpdated = lastResultsRef.current !== searchResults;
+    if (searchResultsUpdated) {
+      lastResultsRef.current = searchResults;
+    }
     /** @type {HTMLDivElement|null} */
     let refToFocus = null;
     if (focusedLine === null) {
@@ -162,14 +202,17 @@ export const Transcript = ({ playerID, transcripts, showDownload: showSelect = t
     } else { // a line is currently focused
       const matchIndex = searchResults.ids.indexOf(focusedLine);
       if (searchResults.ids.length === 0) {
-        if (searchQuery !== null && searchQuery.replace(/\s/g, '') !== '') {
+        /*if (searchQuery !== null && searchQuery.replace(/\s/g, '') !== '') {
           setFocusedMatchIndex(-1);
           setFocusedLine(0);
-        } else {
-          setFocusedMatchIndex(-1);
-        }
+          refToFocus = textRefs.current[0];
+        } else {*/
+        setFocusedMatchIndex(-1);
+        refToFocus = textRefs.current[focusedLine];
+        // }
       } else if (matchIndex !== -1) { // currently focused line is in the new result set, maintain focus on it
         if (focusedLine !== lastFocusedLine.current) {
+          // scroll to this next line
           refToFocus = textRefs.current[focusedLine];
         }
         setFocusedMatchIndex(matchIndex);
@@ -181,12 +224,18 @@ export const Transcript = ({ playerID, transcripts, showDownload: showSelect = t
         setFocusedMatchIndex(searchResults.ids.length - 1);
         refToFocus = textRefs.current[searchResults.ids[searchResults.ids.length - 1]];
       } else if (searchResults.ids.length > 0) {
+        // we have search results
+        if (focusedLine !== lastFocusedLine.current) {
+          refToFocus = textRefs.current[focusedLine];
+        }
         if (focusedMatchIndex === -1) {
           setFocusedMatchIndex(0);
           const nextID = searchResults.ids[0];
           setFocusedLine(nextID);
           refToFocus = textRefs.current[nextID];
-        } else if (typeof focusedMatchIndex === 'number') {
+        } else if (typeof focusedMatchIndex === 'number' && searchResultsUpdated) {
+          // ^ here we only change the focused line if the search results have changed this is
+          // so the focused line can be automatically advanced during playback without causing flickering
           const nextID = searchResults.ids[focusedMatchIndex];
           setFocusedLine(nextID);
           refToFocus = textRefs.current[nextID];
@@ -215,55 +264,72 @@ export const Transcript = ({ playerID, transcripts, showDownload: showSelect = t
   /** @type {React.MutableRefObject<((this: HTMLVideoElement, ev: Event & { target: HTMLVideoElement }) => any)>} */
   const onPlaybackRef = useRef();
   onPlaybackRef.current = e => {
-    if (e == null || e.target == null || !areTranscriptsTimed || !followingVideo.current) return;
+    if (e === null || e.target === null || !areTranscriptsTimed || !followingVideo.current) return;
     const currentTime = e.target.currentTime;
 
     for (const transcriptLine of /** @type {TimedTranscriptItem[]} */ (transcript)) {
       if (currentTime >= transcriptLine.begin && currentTime <= transcriptLine.end) {
-        console.log(transcriptLine.id, withinRange(transcriptLine.begin), playbackRange, transcriptLine);
-        setFocusedLine(transcriptLine.id);
+        if (transcriptLine.id !== focusedLine) {
+          setFocusedLine(transcriptLine.id);
+        }
       }
     }
   };
 
   useEffect(() => {
+    let onTimeUpdate = null, onEnded = null, playerEl = null;
+
     (waitForSelector(`#${playerID}`, 333, 15000)
       .then(domPlayer => {
-        let playerEl = /** @type {HTMLVideoElement} */ (domPlayer.children[0]);
+        playerEl = /** @type {HTMLVideoElement} */ (domPlayer.children[0]);
         setPlayer(playerEl);
 
         playerEl.dataset['canvasindex']
           ? setCanvasIndex(playerEl.dataset['canvasindex'])
           : setCanvasIndex(0);
-        playerEl.addEventListener('timeupdate', function (e) { return onPlaybackRef.current.call(this, e); });
+        onTimeUpdate = function (...args) { return onPlaybackRef.current.call(this, ...args); }
+        playerEl.addEventListener('timeupdate', onTimeUpdate);
 
-        playerEl.addEventListener('ended', e => {
+        onEnded = e => {
           // render next canvas related transcripts
           setCanvasIndex(canvasIndex + 1);
-        });
-        console.log(`duration: ${playerEl.duration}`)
+        };
+        playerEl.addEventListener('ended', onEnded);
 
-        // let range = getMediaFragment(playerEl.src, playerEl.duration);
-        // if (!range) range = { start: 0, end: playerEl.duration };
-        // setPlaybackRange(range);
+        let range = getMediaFragment(playerEl.src, playerEl.duration);
+        if (!range) range = { start: 0, end: playerEl.duration };
+        setPlaybackRange(range);
 
 
       }).catch(err => {
-        console.error(`Cannot find player, ${playerID} on page.Transcript synchronization is disabled.`);
+        console.error(err);
+        console.error(`Cannot find player, ${playerID} on page. Transcript synchronization is disabled.`);
       })
     );
+    return () => {
+      console.log('unloading player');
+      if (playerEl) {
+        if (onTimeUpdate) playerEl.removeEventListener('timeupdate', onTimeUpdate);
+        if (onEnded) playerEl.removeEventListener('ended', onEnded);
+      }
+    };
   }, []);
 
 
   const fetchManifestData = React.useCallback(async t => {
     const data = await checkManifestAnnotations(t);
+    // Check if a single item without transcript info is
+    // listed to hide transcript selector from UI
+    if (data?.length == 1 && data[0].validity !== TRANSCRIPT_VALIDITY.transcript) {
+      setIsEmpty(true);
+    }
     setCanvasTranscripts(data);
     setStateVar(data[0]);
   }, []);
 
 
   useEffect(() => {
-    const getCanvasT = tr => tr.filter((t) => t.canvasId == canvasIndex);
+    const getCanvasT = tr => tr.filter((t) => String(t.canvasId) === String(canvasIndex));
     const getTItems = tr => getCanvasT(tr)[0].items;
     /**
      * When transcripts prop is empty
@@ -278,11 +344,10 @@ export const Transcript = ({ playerID, transcripts, showDownload: showSelect = t
       setIsLoading(false);
       setIsEmpty(true);
       setTranscript([]);
-      setError('No Transcript(s) found, please check again.');
+      setError(NO_TRANSCRIPTS_MSG);
     } else {
       const cTrancripts = getCanvasT(transcripts);
       fetchManifestData(cTrancripts[0]);
-      setIsEmpty(false);
     }
   }, [canvasIndex]);
 
@@ -313,8 +378,8 @@ export const Transcript = ({ playerID, transcripts, showDownload: showSelect = t
     observer.observe(targetNode, config);
   };
 
-  const selectTranscript = (selectedTitle) => {
-    const selectedTranscript = canvasTranscripts.filter(tr => tr.title === selectedTitle);
+  const selectTranscript = (selectedId) => {
+    const selectedTranscript = canvasTranscripts.filter(tr => tr.id === selectedId);
     setStateVar(selectedTranscript[0]);
   };
 
@@ -323,26 +388,35 @@ export const Transcript = ({ playerID, transcripts, showDownload: showSelect = t
       return;
     }
 
-    const { title, url } = transcript;
+    const { id, title, url, validity, isMachineGen } = transcript;
     setTranscriptTitle(title);
+    setTranscriptId(id);
+    setMachineGenerated(isMachineGen);
 
-    // parse transcript data and update state variables
-    await Promise.resolve(
-      parseTranscriptData(url, canvasIndexRef.current)
-    ).then(function (value) {
-      if (value != null) {
-        const { tData, tUrl } = value;
-        setTranscriptUrl(tUrl);
-        setTranscript(tData);
-        tData?.length == 0
-          ? setError('No Valid Transcript(s) found, please check again.')
-          : null;
-      } else {
-        setTranscript([]);
-        setError('Invalid URL for transcript, please check again.');
-      }
+    if (validity == TRANSCRIPT_VALIDITY.transcript) {
+      // parse transcript data and update state variables
+      await Promise.resolve(
+        parseTranscriptData(url, canvasIndexRef.current)
+      ).then(function (value) {
+        if (value != null) {
+          const { tData, tUrl } = value;
+          setTranscriptUrl(tUrl);
+          setTranscript(tData);
+        }
+        setIsLoading(false);
+        setNoTranscript(false);
+      });
+    } else {
+      setTranscript([]);
       setIsLoading(false);
-    });
+      setNoTranscript(true);
+      if (validity == TRANSCRIPT_VALIDITY.noTranscript) {
+        setError(NO_TRANSCRIPTS_MSG);
+      } else {
+        setError(INVALID_URL_MSG);
+      }
+    }
+
   };
 
   if (transcriptRef.current) {
@@ -395,7 +469,7 @@ export const Transcript = ({ playerID, transcripts, showDownload: showSelect = t
     } else {
       // invalid transcripts
       timedText.push(
-        <p key="no-transcript" id="no-transcript" data-testid="no-transcript">
+        <p key="no-transcript" className="no-transcript" data-testid="no-transcript">
           {errorMsg}
         </p>
       );
@@ -425,9 +499,11 @@ export const Transcript = ({ playerID, transcripts, showDownload: showSelect = t
               <TranscriptSelector
                 setTranscript={selectTranscript}
                 title={transcriptTitle}
+                tId={transcriptId}
                 url={transcriptUrl}
                 transcriptData={canvasTranscripts}
-                noTranscript={timedText[0]?.key}
+                noTranscript={noTranscript}
+                machineGenerated={machineGenerated}
               />
             )}
           </div>
@@ -437,7 +513,7 @@ export const Transcript = ({ playerID, transcripts, showDownload: showSelect = t
           ref={transcriptContainerRef}
         >
           {transcriptRef.current && timedText}
-          {transcriptUrl != '' && timedText.length == 0 && (
+          {transcriptUrl != '' && timedText.length === 0 && (
             <iframe
               className="transcript_viewer"
               data-testid="transcript_viewer"

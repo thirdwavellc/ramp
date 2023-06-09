@@ -6,7 +6,20 @@ import {
   getMediaFragment,
   getAnnotations,
   parseAnnotations,
+  identifyMachineGen,
 } from './utility-helpers';
+
+const TRANSCRIPT_MIME_TYPES = [
+  { type: 'application/json', ext: 'json' },
+  { type: 'text/vtt', ext: 'vtt' },
+  { type: 'text/plain', ext: 'txt' },
+  { type: 'application/msword', ext: 'doc' },
+  { type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', ext: 'docx' }
+];
+
+// ENum for describing validity of the transcript information provided
+// by the user
+export const TRANSCRIPT_VALIDITY = { transcript: 1, noTranscript: 0, invalidURL: -1 };
 
 /**
  * Go through the list of transcripts for the active canvas and add 
@@ -18,7 +31,7 @@ import {
 export async function checkManifestAnnotations(trancripts) {
   const { canvasId, items } = trancripts;
   let newItems = await Promise.all(
-    items.map(item => getSupplementingTranscripts(canvasId, item))
+    items.map((item, index) => getSupplementingTranscripts(canvasId, item, index))
   );
 
   let flattened = newItems.flat();
@@ -30,10 +43,15 @@ export async function checkManifestAnnotations(trancripts) {
  * to be displayed in the transcripts component
  * @param {Number} canvasId active canvas ID in transcript component
  * @param {Object} item contains title and URL for transcript resource
+ * @param {Number} index
  * @returns {Array<Object>} array of transcript resources
  */
-function getSupplementingTranscripts(canvasId, item) {
+function getSupplementingTranscripts(canvasId, item, index) {
   const { title, url } = item;
+  // Set machine generated flag from the given title/filename
+  item.isMachineGen = identifyMachineGen(title);
+  // Add a unique id to identify each transcript in the list
+  item.id = `${title}-${index}-0`;
 
   let data = fetch(url)
     .then(function (response) {
@@ -62,31 +80,36 @@ function getSupplementingTranscripts(canvasId, item) {
         if (annotations.length > 0) {
           let type = annotations[0].getBody()[0].getProperty('type');
           if (type === 'TextualBody') {
-            newTranscriptsList.push({ title, url });
+            newTranscriptsList.push({
+              ...item,
+              validity: TRANSCRIPT_VALIDITY.transcript,
+            });
           } else {
             annotations.forEach((annotation) => {
               let supplementingItems = annotation.getBody();
-              supplementingItems.forEach((si, index) => {
-                let label = si.getLabel()[0] ? si.getLabel()[0].value : `${index}`;
+              supplementingItems.forEach((si, i) => {
+                let label = si.getLabel()[0] ? si.getLabel()[0].value : `${i}`;
                 let id = si.id;
                 newTranscriptsList.push({
-                  title: `${title} - ${label}`,
+                  title: title.length > 0 ? `${title} - ${label}` : label,
                   url: id,
+                  validity: TRANSCRIPT_VALIDITY.transcript,
+                  isMachineGen: item.isMachineGen || identifyMachineGen(label),
+                  id: `${title}-${index}-${i}`
                 });
               });
             });
           }
         } else {
-          newTranscriptsList.push(item);
+          newTranscriptsList.push({ ...item, validity: TRANSCRIPT_VALIDITY.noTranscript });
         }
       } else {
-        newTranscriptsList.push(item);
+        newTranscriptsList.push({ ...item, validity: TRANSCRIPT_VALIDITY.transcript });
       }
-
       return newTranscriptsList;
     })
     .catch(function () {
-      return [item];
+      return [{ ...item, validity: TRANSCRIPT_VALIDITY.invalidURL }];
     });
   return data;
 }
@@ -109,25 +132,14 @@ export async function parseTranscriptData(url, canvasIndex) {
     return { tData, tUrl };
   }
 
-  if (!url) {
-    return null;
-  }
-
-  // validate url
-  let newUrl = '';
-  try {
-    newUrl = new URL(url);
-  } catch (_) {
-    console.log('Invalid transcript URL');
-    return null;
-  }
-
+  let contentType = null;
   let fileData = null;
 
   // get file type
   await fetch(url)
     .then(handleFetchErrors)
     .then(function (response) {
+      contentType = response.headers.get('Content-Type');
       fileData = response;
     })
     .catch((error) => {
@@ -138,7 +150,19 @@ export async function parseTranscriptData(url, canvasIndex) {
       return null;
     });
 
-  const fileType = url.split('.').reverse()[0];
+  if (contentType.split(';').length == 0) {
+    return null;
+  }
+
+  // Use combination of the file extension and the Content-Type of
+  // the fetch request to determine the file type
+  let type = TRANSCRIPT_MIME_TYPES.filter(tt => tt.type == contentType.split(';')[0]);
+  let fileType = '';
+  if (type.length > 0) {
+    fileType = type[0].ext;
+  } else {
+    fileType = url.split('.').reverse()[0];
+  }
 
   switch (fileType) {
     case 'json':
@@ -154,7 +178,6 @@ export async function parseTranscriptData(url, canvasIndex) {
     case 'vtt':
     case 'txt':
       let textData = await fileData.text();
-      // console.log(textData);
       let textLines = textData.split('\n');
       if (textLines.length == 0) {
         return { tData: [], tUrl: url };

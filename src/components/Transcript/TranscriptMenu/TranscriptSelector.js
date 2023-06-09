@@ -1,42 +1,71 @@
 import React from 'react';
+import PropTypes from 'prop-types';
 import TranscriptDownloader from './TranscriptDownloader';
 
-const TranscriptSelector = (props) => {
-  const [title, setTitle] = React.useState(props.title);
+const MACHINE_GEN_MESSAGE = '* machine-generated transcripts may contain errors.';
+
+export const TranscriptSelector = ({
+  setTranscript,
+  title,
+  tId,
+  url,
+  transcriptData,
+  noTranscript,
+  machineGenerated
+}) => {
+  const [currentId, setCurrentId] = React.useState(tId);
 
   const selectItem = (event) => {
-    setTitle(event.target.value);
-    props.setTranscript(event.target.value);
+    setCurrentId(event.target.value);
+    setTranscript(event.target.value);
   };
 
-  if (props.transcriptData) {
+  if (transcriptData) {
     return (
       <div
         className="ramp--transcript_selector"
         data-testid="transcript-selector"
       >
-        <div className="selector-content">
+        <div className="ramp--transcript_list">
           <select
-            className="transcript_list"
+            className="ramp--transcript_content"
             data-testid="transcript-select-option"
-            value={title}
+            value={currentId}
             onChange={selectItem}
           >
-            {props.transcriptData.map((t, i) => (
-              <option value={t.title} key={i}>
+            {transcriptData.map((t, i) => (
+              <option value={t.id} label={t.title} key={i}>
                 {t.title}
               </option>
             ))}
           </select>
         </div>
-        {props.noTranscript != 'no-transcript' &&
-          <TranscriptDownloader fileUrl={props.url} fileName={props.title} />
+        {!noTranscript &&
+          <TranscriptDownloader
+            fileUrl={url}
+            fileName={title}
+            machineGenerated={machineGenerated} />
+        }
+        {machineGenerated &&
+          <p className="ramp--transcript_machine_generated" data-testid="transcript-machinegen-msg">
+            {MACHINE_GEN_MESSAGE}
+          </p>
         }
       </div>
     );
   } else {
     return null;
   }
+};
+
+TranscriptSelector.propTypes = {
+  setTranscript: PropTypes.func.isRequired,
+  title: PropTypes.string.isRequired,
+  tId: PropTypes.string.isRequired,
+  url: PropTypes.string.isRequired,
+  transcriptData: PropTypes.array.isRequired,
+  noTranscript: PropTypes.bool.isRequired,
+  machineGenerated: PropTypes.bool.isRequired
 };
 
 export default TranscriptSelector;

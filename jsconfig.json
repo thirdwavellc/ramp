@@ -4,10 +4,19 @@
     "baseUrl": "./",
     "jsx": "react-jsx",
     "paths": {
-      "@Components/*": ["src/components/*"],
-      "@Json/*": ["src/json/*"],
-      "@Services/*": ["src/services/*"]
+      "@Components/*": [
+        "src/components/*"
+      ],
+      "@Json/*": [
+        "src/json/*"
+      ],
+      "@Services/*": [
+        "src/services/*"
+      ]
     }
   },
-  "exclude": ["node_modules", "demo"]
+  "exclude": [
+    "node_modules",
+    "dist"
+  ]
 }

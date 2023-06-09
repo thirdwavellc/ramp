@@ -108,7 +108,8 @@
             }
 
             &:disabled {
-                cursor: not-allowed;
+                cursor: default;
+                display: block;
                 background-image: url("../../assets/icons/search.svg");
             }
         }
@@ -240,7 +241,7 @@
             }
         }
 
-        & .ramp--transcript_selector .selector-content .transcript_list {
+        & .ramp--transcript_content {
             appearance: none;
             background-color: transparent;
             background-image: url("../../assets/icons/chevron-down.svg");

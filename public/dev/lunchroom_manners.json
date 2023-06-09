@@ -74,11 +74,11 @@
       },
       "items": [
         {
-          "id": "http://localhost:3003/dev/lunchroom_manners/canvas/1/page",
+          "id": "http://localhost:3003/dev/lunchroom_manners/canvas/1/page/1",
           "type": "AnnotationPage",
           "items": [
             {
-              "id": "http://localhost:3003/dev/lunchroom_manners/canvas/1/page/annotation",
+              "id": "http://localhost:3003/dev/lunchroom_manners/canvas/1/page/1/annotation",
               "type": "Annotation",
               "motivation": "painting",
               "body": [
@@ -139,7 +139,7 @@
                 "format": "text/vtt",
                 "label": {
                   "en": [
-                    "WebVTT Transcript"
+                    "WebVTT Transcript (machine-generated)"
                   ]
                 }
               },

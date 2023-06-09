@@ -4,10 +4,10 @@ import 'lodash';
 import TranscriptSelector from './TranscriptMenu/TranscriptSelector';
 import TranscriptSearch from './TranscriptMenu/TranscriptSearch';
 import { createTimestamp, getMediaFragment } from '@Services/utility-helpers';
-import { checkManifestAnnotations, parseTranscriptData } from '@Services/transcript-parser';
+import { checkManifestAnnotations, parseTranscriptData, TRANSCRIPT_VALIDITY } from '@Services/transcript-parser';
 import './Transcript.scss';
 import { useFilteredTranscripts } from '../../context/search';
-import { PlayerDispatchContext, PlayerStateContext, usePlayerDispatch, usePlayerState } from '../../context/player-context';
+import { PlayerDispatchContext, PlayerStateContext } from '../../context/player-context';
 
 
 /** @typedef {import('../../context/search').TranscriptSearchResults} TranscriptSearchResults */
@@ -33,6 +33,9 @@ const highlightTranscriptItem = (t) => (typeof t === 'string'
     : t.text
   )
 );
+
+const NO_TRANSCRIPTS_MSG = 'No valid Transcript(s) found, please check again.';
+const INVALID_URL_MSG = 'Invalid URL for transcript, please check again.';
 
 /**
  * @param {string} selector - dom selector to poll for 
@@ -69,11 +72,14 @@ export const Transcript = ({ playerID, transcripts, showDownload: showSelect = t
   searchResultsRef.current = searchResults;
 
   const [transcriptTitle, setTranscriptTitle] = React.useState('');
+  const [transcriptId, setTranscriptId] = React.useState('');
   const [transcriptUrl, setTranscriptUrl] = React.useState('');
   const [canvasIndex, _setCanvasIndex] = React.useState(0);
   const [isLoading, setIsLoading] = React.useState(true);
   const [searchQuery, setSearchQuery] = React.useState(null);
   const [errorMsg, setError] = React.useState('');
+  const [machineGenerated, setMachineGenerated] = React.useState(false);
+  const [noTranscript, setNoTranscript] = React.useState(false);
 
   const isEmptyRef = useRef(false);
   const setIsEmpty = (e) => {
@@ -133,6 +139,7 @@ export const Transcript = ({ playerID, transcripts, showDownload: showSelect = t
   useEffect(() => {
     if (!playerCtx?.player) return;
     if (!areTranscriptsTimed) return;
+    if (!playbackRange) return;
     let nextMarkers = [];
 
     if (searchResults.ids.length < 25 || (searchQuery !== null && searchQuery.length >= 3)) {
@@ -196,14 +203,14 @@ export const Transcript = ({ playerID, transcripts, showDownload: showSelect = t
     } else { // a line is currently focused
       const matchIndex = searchResults.ids.indexOf(focusedLine);
       if (searchResults.ids.length === 0) {
-        if (searchQuery !== null && searchQuery.replace(/\s/g, '') !== '') {
+        /*if (searchQuery !== null && searchQuery.replace(/\s/g, '') !== '') {
           setFocusedMatchIndex(-1);
           setFocusedLine(0);
           refToFocus = textRefs.current[0];
-        } else {
-          setFocusedMatchIndex(-1);
-          refToFocus = textRefs.current[focusedLine];
-        }
+        } else {*/
+        setFocusedMatchIndex(-1);
+        refToFocus = textRefs.current[focusedLine];
+        // }
       } else if (matchIndex !== -1) { // currently focused line is in the new result set, maintain focus on it
         if (focusedLine !== lastFocusedLine.current) {
           // scroll to this next line
@@ -296,7 +303,8 @@ export const Transcript = ({ playerID, transcripts, showDownload: showSelect = t
 
 
       }).catch(err => {
-        console.error(`Cannot find player, ${playerID} on page.Transcript synchronization is disabled.`);
+        console.error(err);
+        console.error(`Cannot find player, ${playerID} on page. Transcript synchronization is disabled.`);
       })
     );
     return () => {
@@ -311,6 +319,11 @@ export const Transcript = ({ playerID, transcripts, showDownload: showSelect = t
 
   const fetchManifestData = React.useCallback(async t => {
     const data = await checkManifestAnnotations(t);
+    // Check if a single item without transcript info is
+    // listed to hide transcript selector from UI
+    if (data?.length == 1 && data[0].validity != TRANSCRIPT_VALIDITY.transcript) {
+      setIsEmpty(true);
+    }
     setCanvasTranscripts(data);
     setStateVar(data[0]);
   }, []);
@@ -332,11 +345,10 @@ export const Transcript = ({ playerID, transcripts, showDownload: showSelect = t
       setIsLoading(false);
       setIsEmpty(true);
       setTranscript([]);
-      setError('No Transcript(s) found, please check again.');
+      setError(NO_TRANSCRIPTS_MSG);
     } else {
       const cTrancripts = getCanvasT(transcripts);
       fetchManifestData(cTrancripts[0]);
-      setIsEmpty(false);
     }
   }, [canvasIndex]);
 
@@ -367,8 +379,8 @@ export const Transcript = ({ playerID, transcripts, showDownload: showSelect = t
     observer.observe(targetNode, config);
   };
 
-  const selectTranscript = (selectedTitle) => {
-    const selectedTranscript = canvasTranscripts.filter(tr => tr.title === selectedTitle);
+  const selectTranscript = (selectedId) => {
+    const selectedTranscript = canvasTranscripts.filter(tr => tr.id === selectedId);
     setStateVar(selectedTranscript[0]);
   };
 
@@ -377,26 +389,35 @@ export const Transcript = ({ playerID, transcripts, showDownload: showSelect = t
       return;
     }
 
-    const { title, url } = transcript;
+    const { id, title, url, validity, isMachineGen } = transcript;
     setTranscriptTitle(title);
+    setTranscriptId(id);
+    setMachineGenerated(isMachineGen);
 
-    // parse transcript data and update state variables
-    await Promise.resolve(
-      parseTranscriptData(url, canvasIndexRef.current)
-    ).then(function (value) {
-      if (value != null) {
-        const { tData, tUrl } = value;
-        setTranscriptUrl(tUrl);
-        setTranscript(tData);
-        tData?.length == 0
-          ? setError('No Valid Transcript(s) found, please check again.')
-          : null;
-      } else {
-        setTranscript([]);
-        setError('Invalid URL for transcript, please check again.');
-      }
+    if (validity == TRANSCRIPT_VALIDITY.transcript) {
+      // parse transcript data and update state variables
+      await Promise.resolve(
+        parseTranscriptData(url, canvasIndexRef.current)
+      ).then(function (value) {
+        if (value != null) {
+          const { tData, tUrl } = value;
+          setTranscriptUrl(tUrl);
+          setTranscript(tData);
+        }
+        setIsLoading(false);
+        setNoTranscript(false);
+      });
+    } else {
+      setTranscript([]);
       setIsLoading(false);
-    });
+      setNoTranscript(true);
+      if (validity == TRANSCRIPT_VALIDITY.noTranscript) {
+        setError(NO_TRANSCRIPTS_MSG);
+      } else {
+        setError(INVALID_URL_MSG);
+      }
+    }
+
   };
 
   if (transcriptRef.current) {
@@ -449,7 +470,7 @@ export const Transcript = ({ playerID, transcripts, showDownload: showSelect = t
     } else {
       // invalid transcripts
       timedText.push(
-        <p key="no-transcript" id="no-transcript" data-testid="no-transcript">
+        <p key="no-transcript" className="no-transcript" data-testid="no-transcript">
           {errorMsg}
         </p>
       );
@@ -479,9 +500,11 @@ export const Transcript = ({ playerID, transcripts, showDownload: showSelect = t
               <TranscriptSelector
                 setTranscript={selectTranscript}
                 title={transcriptTitle}
+                tId={transcriptId}
                 url={transcriptUrl}
                 transcriptData={canvasTranscripts}
-                noTranscript={timedText[0]?.key}
+                noTranscript={noTranscript}
+                machineGenerated={machineGenerated}
               />
             )}
           </div>

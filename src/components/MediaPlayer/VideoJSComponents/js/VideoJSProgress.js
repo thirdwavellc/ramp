@@ -39,7 +39,6 @@ export class VideoJSProgress extends vjsComponent {
 
     this.mount = this.mount.bind(this);
     this.handleTimeUpdate = this.handleTimeUpdate.bind(this);
-    this.initProgressBar = this.initProgressBar.bind(this);
     this.setTimes = this.setTimes.bind(this);
 
     this.player = player;
@@ -54,7 +53,6 @@ export class VideoJSProgress extends vjsComponent {
 
     player.on('loadedmetadata', () => {
       this.setTimes();
-      this.initProgressBar();
     });
 
     /* Remove React root when component is destroyed */
@@ -80,38 +78,6 @@ export class VideoJSProgress extends vjsComponent {
     this.setState({ startTime, endTime });
   }
 
-  /** Build progress bar elements from the options */
-  initProgressBar() {
-    // const { duration, targets } = this.options;
-    // const { startTime, endTime } = this.state;
-
-    // const leftBlock = (startTime * 100) / duration;
-    // const rightBlock = ((duration - endTime) * 100) / duration;
-
-    // const toPlay = 100 - leftBlock - rightBlock;
-
-    // const leftDiv = this.el().querySelector('.left-block');
-    // const rightDiv = this.el().querySelector('.right-block');
-    // const dummySliders = this.el().querySelectorAll(
-    //   '.vjs-custom-progress-inactive'
-    // );
-
-    // if (leftDiv) {
-    //   leftDiv.style.width = leftBlock + '%';
-    // }
-    // if (rightDiv) {
-    //   rightDiv.style.width = rightBlock + '%';
-    // }
-    // // Set the width of dummy slider ranges based on duration of each item
-    // for (let ds of dummySliders) {
-    //   const dsIndex = ds.dataset.srcindex;
-    //   let styleWidth = (targets[dsIndex].duration * 100) / duration;
-    //   ds.style.width = styleWidth + '%';
-    // }
-
-    // this.el().querySelector('.slider-range').style.width = toPlay + '%';
-  }
-
   /**
    * Update CSS for the input range's track while the media
    * is playing
@@ -125,14 +91,14 @@ export class VideoJSProgress extends vjsComponent {
     const nextItems = targets.filter((_, index) => index > srcIndex);
 
     // Restrict access to the intended range in the media file
-    if (curTime < start) {
-      player.currentTime(start);
-    }
-    if (curTime >= end) {
-      if (nextItems.length == 0) options.nextItemClicked(0, targets[0].start);
-      player.trigger('ended');
-      player.pause();
-    }
+    // if (curTime < start) {
+    //   player.currentTime(start);
+    // }
+    // if (curTime >= end) {
+    //   if (nextItems.length == 0) options.nextItemClicked(0, targets[0].start);
+    //   player.trigger('ended');
+    //   player.pause();
+    // }
 
     // Mark the preceding dummy slider ranges as 'played'
     const dummySliders = this.el().querySelectorAll(
@@ -196,7 +162,7 @@ export const ProgressBar = ({ player, handleTimeUpdate, times, options }) => {
   // round to 2 decimal places because otherwise floating point silliness might prevent us from getting a flat 100%
   const leftBlockWidth = Math.floor(((times.start * 100) / options.duration) * 100) / 100;
   const rightBlockWidth = Math.floor((((options.duration - times.end) * 100) / options.duration) * 100) / 100;
-
+  const centerBlockWidth = Math.floor((100 - leftBlockWidth - rightBlockWidth) * 100) / 100;
   const progressRef = React.useRef(progress);
   const setProgress = (p) => {
     progressRef.current = p;
@@ -385,20 +351,17 @@ export const ProgressBar = ({ player, handleTimeUpdate, times, options }) => {
         min={times.start}
         max={times.end}
         value={progress}
+        style={{ width: `${centerBlockWidth}%` }}
         data-srcindex={srcIndex}
         className="vjs-custom-progress slider-range"
         onChange={updateProgress}
         onMouseMove={(e) => handleMouseMove(e, false)}
         ref={sliderRangeRef}
-      ></input>
-      {tRight.length > 0 ? (
-        createRange(tRight)
-      ) : (
-        <div
-          className="block-stripes block-right"
-          style={{ width: `${rightBlockWidth}` }}
-        />
-      )}
+      />
+      <div
+        className="block-stripes block-right"
+        style={{ width: `${rightBlockWidth}%` }}
+      />
     </div>
   );
 };

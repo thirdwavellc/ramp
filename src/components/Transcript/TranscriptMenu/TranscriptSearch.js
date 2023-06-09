@@ -1,4 +1,4 @@
-import React, { useRef } from 'react';
+import React, { useRef, useEffect } from 'react';
 import PropTypes from 'prop-types';
 
 /** @typedef {import('../../../context/search').TranscriptSearchResults} TranscriptSearchResults */
@@ -18,6 +18,11 @@ import PropTypes from 'prop-types';
  */
 const TranscriptSearch = ({ setSearchQuery, searchQuery, searchResults, setFocusedLine, focusedMatchIndex }) => {
     const searchInputRef = useRef(null);
+    useEffect(() => {
+        if (!searchInputRef.current) return;
+        if (searchQuery) searchInputRef.current.value = searchQuery;
+    }, [!!searchInputRef.current]);
+
     let resultNavigation = null;
     if (searchQuery !== null && searchQuery.replace(/\s/g, '') !== '') {
         if (searchResults.ids.length === 0) {

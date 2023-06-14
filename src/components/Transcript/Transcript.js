@@ -214,6 +214,9 @@ export const Transcript = ({ initialSearchQuery = null, playerID, transcripts, s
         if (focusedLine !== lastFocusedLine.current) {
           // scroll to this next line
           refToFocus = textRefs.current[focusedLine];
+        } else if (player && areTranscriptsTimed && searchResults.results[focusedLine] && !searchResultsUpdated) {
+          // advance player, but only if the search results haven't changed (eg: when prev/next are hit)
+          player.currentTime = /** @type {TimedTranscriptItem} */(searchResults.results[focusedLine].item).begin;
         }
         setFocusedMatchIndex(matchIndex);
         const nextID = searchResults.ids[matchIndex];

@@ -56,7 +56,6 @@ export class VideoJSProgress extends vjsComponent {
   }
 
   mount() {
-    console.log('el', this.el());
     this.options.setPortal(ReactDOM.createPortal(
       <ProgressBar />,
       this.el()

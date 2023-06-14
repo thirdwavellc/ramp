@@ -75,9 +75,6 @@ https://github.com/nodeca/pako/blob/main/LICENSE
 
 /*! safe-buffer. MIT License. Feross Aboukhadijeh <https://feross.org/opensource> */
 
-/*! videojs-markers-plugin - v1.0.2 - 2019-08-23
-  * Copyright (c) 2019 ; Licensed  */
-
 /**
  * @license
  * Lodash <https://lodash.com/>
